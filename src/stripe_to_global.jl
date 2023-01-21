@@ -19,6 +19,10 @@ end
 #   phases: vector of vector. Each vector contains phase fraction of candidate phases
 #   uncertainty:
 using Statistics: mean
+function stripe_to_global(x::AbstractVector, y::AbstractVector{<:AbstractVector}, stg_stn::STGSettings, relevant_T)
+    stripe_to_global(x, y, stg_stn.σ, stg_stn.kernel, stg_stn.TP, stg_stn.condition, relevant_T, stg_stn.input_noise)
+end
+
 function stripe_to_global(x::AbstractVector, y::AbstractVector{<:AbstractVector},
                             σ::Real, k, P::TemperatureProfile, condition::NTuple,
                             relevant_T, input_noise::Union{Val{true}, Val{false}} = Val(true))
@@ -126,10 +130,19 @@ function get_global_entropy(temperature_process::Gaussian,
     entropy, uncertainty
 end
 
+function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
+                         cs::AbstractVector{<:CrystalPhase}, s;
+                         ts_stn::CrystalTree.TreeSearchSettings,
+                         stg_stn::STGSettings,
+                         relevant_T)
+    println("called")
+    y = get_phase_fractions(q, Y, cs, s, ts_stn=ts_stn, stg_stn=stg_stn)
+    stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], stg_stn, relevant_T)
+end
 
 
 
-function phase_to_global(x::AbstractVector, Y::AbstractMatrix,
+function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
                          cs::AbstractVector{<:CrystalPhase};
                          rank::Int,
                          length_scale::Real,
@@ -148,7 +161,7 @@ function phase_to_global(x::AbstractVector, Y::AbstractMatrix,
                          relevant_T,
                          input_noise::Union{Val{true}, Val{false}} = Val(false))
 
-    y = get_phase_fractions(x, Y, cs;
+    y = get_phase_fractions(q, Y, cs;
                             rank = rank,
                             length_scale=length_scale,
                             depth = depth,
@@ -162,7 +175,7 @@ function phase_to_global(x::AbstractVector, Y::AbstractMatrix,
                             frac_threshold  = frac_threshold)
     plt = heatmap(y)
     display(plt)
-    stripe_to_global(collect(-1.:.01:1), [y[:,i] for i in 1:size(y,2)], σ, kernel, P, condition, relevant_T, input_noise)
+    stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], σ, kernel, P, condition, relevant_T, input_noise)
 end
 
 function entropy_to_global(x::AbstractVector, Y::AbstractMatrix,
@@ -218,6 +231,32 @@ get_entropy(P::AbstractMatrix) = reduce(vcat, sum(get_entropy.(P), dims=2))
 
 
 # Simple version, not doing refinement
+function get_phase_fractions(x, Y, cs, s; ts_stn::TreeSearchSettings, stg_stn::STGSettings)
+    pr = ts_stn.opt_stn.priors
+    W, H, _ = xray(Array(transpose(Y)), stg_stn.nmf_rank)
+    result_nodes = Vector{Node}(undef, stg_stn.nmf_rank)
+
+    for i in 1:size(W, 2)
+        if !is_amorphous(x, W[:, i], stg_stn.background_length, 10.) # temperal; Should use root node for amorphous determination
+            # Background subtraction
+            b = mcbl(W[:, i], x, stg_stn.background_length)
+            W[:, i] -= b
+            W[:, i] /= maximum(W[:, i])
+
+            # Tree search
+            lt = Lazytree(cs, x, 5, s)
+            result = search!(lt, x, W[:, i], ts_stn)
+            results = reduce(vcat, result)
+            probs = get_probabilities(results, x, W[:, i], pr.std_noise, pr.mean_θ, pr.std_θ)
+            result_node = results[argmax(probs)]
+            result_nodes[i] = result_node
+        end
+    end
+
+    fractions = zeros(Float64, (size(Y, 1), length(cs)))
+    get_phase_fractions!(fractions, H, result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
+end
+
 function get_phase_fractions(x::AbstractVector, Y::AbstractMatrix,
                             cs::AbstractVector{<:CrystalPhase};
                             rank::Int,

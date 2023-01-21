@@ -2,8 +2,10 @@ using NPZ
 using CrystalShift
 using CrystalShift: FixedPseudoVoigt
 
+using CrystalTree: TreeSearchSettings
+
 using SARA_Crystal: get_phase_fractions, phase_to_global, TemperatureProfile, get_relevant_T
-using SARA_Crystal: entropy_to_global
+using SARA_Crystal: entropy_to_global, STGSettings
 using CovarianceFunctions
 
 
@@ -51,18 +53,21 @@ constant_offset_bool = true
 constant_offset = Val(constant_offset_bool)
 T_offset = [200, 10] # number of degrees from T_max we are generating data for
 relevant_T = get_relevant_T(constant_offset, T_offset..., nout)
-
-@time t = entropy_to_global(q, data, cs;
-                        rank =4,
-                        length_scale=8.,
-                        depth=2,
-                        s,
-                        search_k=3,
-                        std_noise=0.1,
-                        mean_θ=[1., .5, .5],
-                        std_θ=[0.05, 10., 1.],
-                        maxiter=128,
-                        h_threshold=0.1,
-                        frac_threshold=0.1,
-                        σ=0.05, kernel=kernel,
-                        P=tp, condition=(1300, 3), relevant_T=relevant_T)
+x = collect(-1.:.01:1.)
+# @time t = entropy_to_global(x, q, data, cs;
+#                         rank =4,
+#                         length_scale=8.,
+#                         depth=2,
+#                         s,
+#                         search_k=3,
+#                         std_noise=0.1,
+#                         mean_θ=[1., .5, .5],
+#                         std_θ=[0.05, 10., 1.],
+#                         maxiter=128,
+#                         h_threshold=0.1,
+#                         frac_threshold=0.1,
+#                         σ=0.05, kernel=kernel,
+#                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
+ts_stn = TreeSearchSettings{Float64}()
+stg_stn = STGSettings()
+@time t = phase_to_global(x, q, data, cs, s; ts_stn=ts_stn, stg_stn=stg_stn, relevant_T = relevant_T)
