@@ -1,4 +1,3 @@
-const DEFAULT_RES_THRESH = 1.
 const DEFAULT_H_THRESH = 0.2
 const DEFAULT_FRAC_THRESH = 0.1
 
@@ -75,7 +74,7 @@ end
 function get_global_data(temperature_processes::AbstractVector{<:Gaussian},
                         outer_temperature::AbstractVector{<:Real},
                         temperature_domain::NTuple{2, <:Real} = (0, 1400))
-# normalize temperature input to have a normalized scale for derivatives
+    # normalize temperature input to have a normalized scale for derivatives
     ut = unit_transform(temperature_domain...)
     iut = inv_unit_transform(temperature_domain...)
     unit_outer_temperature = ut.(outer_temperature)
@@ -99,6 +98,14 @@ function get_global_data(temperature_processes::AbstractVector{<:Gaussian},
     end
     # @. u = sqrt(u) # convert variance to std?
     return d, u # gradient values and their uncertainties
+end
+
+function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
+                               stg_stn::STGSettings, relevant_T,
+                               temperature_domain::NTuple{2, <:Real} = (0, 1400))
+    stripe_entropy_to_global(x, y,
+                            stg_stn.σ, stg_stn.kernel, stg_stn.TP, stg_stn.condition,
+                            relevant_T, stg_stn.input_noise, temperature_domain)
 end
 
 function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
@@ -135,7 +142,6 @@ function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix
                          ts_stn::CrystalTree.TreeSearchSettings,
                          stg_stn::STGSettings,
                          relevant_T)
-    println("called")
     y = get_phase_fractions(q, Y, cs, s, ts_stn=ts_stn, stg_stn=stg_stn)
     stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], stg_stn, relevant_T)
 end
@@ -161,24 +167,31 @@ function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix
                          relevant_T,
                          input_noise::Union{Val{true}, Val{false}} = Val(false))
 
-    y = get_phase_fractions(q, Y, cs;
-                            rank = rank,
-                            length_scale=length_scale,
-                            depth = depth,
-                            s = s,
-                            k = search_k,
-                            std_noise = std_noise,
-                            mean_θ = mean_θ,
-                            std_θ = std_θ,
-                            maxiter = maxiter,
-                            h_threshold = h_threshold,
-                            frac_threshold  = frac_threshold)
-    plt = heatmap(y)
-    display(plt)
+    opt_stn = OptimizationSettings{Float64}(std_noise, mean_θ, std_θ, maxiter, true, LM, "LS", Simple)
+    ts_stn = TreeSearchSettings(depth, search_k, opt_stn)
+    stg_stn = STGSettings(rank, h_threshold, frac_threshold, length_scale, kernel, σ, P, condition, input_noise)
+    y = get_phase_fractions(q, Y, cs, s;
+                            ts_stn = ts_stn, stg_stn=stg_stn)
+    renormalize!(y)
+    # plt = heatmap(y)
+    # display(plt)
     stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], σ, kernel, P, condition, relevant_T, input_noise)
 end
 
-function entropy_to_global(x::AbstractVector, Y::AbstractMatrix,
+function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
+                        cs::AbstractVector{<:CrystalPhase}, s;
+                        ts_stn::CrystalTree.TreeSearchSettings,
+                        stg_stn::STGSettings,
+                        relevant_T)
+    y = get_phase_fractions(q, Y, cs, s, ts_stn=ts_stn, stg_stn=stg_stn)
+    entropy_renormalize!(y)
+    entropy = get_entropy(y)
+    stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)
+end
+
+
+
+function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
                             cs::AbstractVector{<:CrystalPhase};
                             rank::Int,
                             length_scale::Real,
@@ -196,7 +209,7 @@ function entropy_to_global(x::AbstractVector, Y::AbstractMatrix,
                             condition::NTuple,
                             relevant_T,
                             input_noise::Union{Val{true}, Val{false}} = Val(false))
-    y = get_phase_fractions(x, Y, cs;
+    y = get_phase_fractions(q, Y, cs;
                             rank = rank,
                             length_scale=length_scale,
                             depth = depth,
@@ -222,12 +235,8 @@ function entropy_to_global(x::AbstractVector, Y::AbstractMatrix,
     entropy = get_entropy(y)
     plt = plot(entropy)
     display(plt)
-    stripe_entropy_to_global(collect(-1.:.01:1.), entropy, σ, kernel, P, condition, relevant_T, input_noise)
+    stripe_entropy_to_global(x, entropy, σ, kernel, P, condition, relevant_T, input_noise)
 end
-
-get_entropy(p::Real) = p == 0 ? 0 : - p * log(p)
-get_entropy(P::AbstractArray) = sum(get_entropy.(P))
-get_entropy(P::AbstractMatrix) = reduce(vcat, sum(get_entropy.(P), dims=2))
 
 
 # Simple version, not doing refinement
@@ -241,139 +250,18 @@ function get_phase_fractions(x, Y, cs, s; ts_stn::TreeSearchSettings, stg_stn::S
             # Background subtraction
             b = mcbl(W[:, i], x, stg_stn.background_length)
             W[:, i] -= b
-            W[:, i] /= maximum(W[:, i])
+            y = W[:,i] / maximum(W[:, i])
 
             # Tree search
             lt = Lazytree(cs, x, 5, s)
-            result = search!(lt, x, W[:, i], ts_stn)
+            result = search!(lt, x, y, ts_stn)
             results = reduce(vcat, result)
-            probs = get_probabilities(results, x, W[:, i], pr.std_noise, pr.mean_θ, pr.std_θ)
+            probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
             result_node = results[argmax(probs)]
             result_nodes[i] = result_node
         end
     end
 
     fractions = zeros(Float64, (size(Y, 1), length(cs)))
-    get_phase_fractions!(fractions, H, result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
+    get_phase_fractions!(fractions, W, H, result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
 end
-
-function get_phase_fractions(x::AbstractVector, Y::AbstractMatrix,
-                            cs::AbstractVector{<:CrystalPhase};
-                            rank::Int,
-                            length_scale::Real,
-                            depth::Int,
-                            s,
-                            k::Int,
-                            std_noise::Real,
-                            mean_θ::AbstractVector,
-                            std_θ::AbstractVector,
-                            maxiter::Int,
-                            h_threshold::Real=DEFAULT_H_THRESH,
-                            frac_threshold::Real=DEFAULT_FRAC_THRESH
-                            )
-    # Use NMF for dimensionality reduction
-    # Only perform search on the NMF basis
-    # Merge identified phases and apply threshold
-
-    # NMF
-    W, H, _ = xray(Array(transpose(Y)), rank)
-
-    # Tree search
-    result_nodes = Vector{Node}(undef, rank)
-    for i in 1:rank
-        # W[:, i] /= maximum(W[:, i])
-        if !is_amorphous(x, W[:, i], length_scale, 10.) # temperal; Should use root node for amorphous determination
-            # Background subtraction
-            plt = plot(x, W[:, i])
-            b = mcbl(W[:, i], x, 7.)
-            plot!(x, b)
-            display(plt)
-            W[:, i] -= b
-            #W[W[:,i] .< 1e-5, i] .= 1e-5
-            W[:, i] /= maximum(W[:, i])
-
-            # Tree search
-            lt = Lazytree(cs, depth, x, 5, s)
-            result = search!(lt, x, W[:, i], k, std_noise, mean_θ, std_θ,
-                             method=LM, objective="LS", maxiter=maxiter,
-                             regularization=true)
-            results = reduce(vcat, result)
-            probs = get_probabilities(results, x, W[:, i], std_noise, mean_θ, std_θ)
-            result_node = results[argmax(probs)]
-            plt = plot(x, W[:, i])
-            plot!(x, evaluate!(zero(x), result_node.phase_model, x))
-            display(plt)
-            result_nodes[i] = result_node
-        end
-    end
-
-    fractions = zeros(Float64, (size(Y, 1), length(cs)))
-    get_phase_fractions!(fractions, H, result_nodes, h_threshold, frac_threshold)
-end
-
-function get_phase_fractions!(fractions::AbstractMatrix,
-                              H::AbstractMatrix,
-                              result_nodes::AbstractVector,
-                              h_thresh::Real,
-                              frac_threshold::Real)
-    for colindex in 1:size(H, 2)
-        for i in eachindex(result_nodes)
-            if  isassigned(result_nodes, i) && H[i, colindex] > h_thresh
-                fracs = get_fraction(result_nodes[i].phase_model.CPs)
-                for phase_idx in eachindex(fracs)
-                    if fracs[phase_idx] >= frac_threshold # Threshold can be 0
-                        fractions[colindex, result_nodes[i].phase_model.CPs[phase_idx].id] +=  H[i, colindex] * fracs[phase_idx]
-                    end
-                end
-            end
-        end
-    end
-    fractions
-end
-
-
-####### Helper functions
-function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
-                      std_noise::Real=0.05,
-                      mean_θ::AbstractVector=[1., 1., 1.],
-                      std_θ::AbstractVector=[0.05, 0.5, 0.2],
-                      maxiter::Int=512,
-                      threshold::Real = DEFAULT_RES_THRESH)
-    normalized_y =  y./maximum(y)
-    bg = BackgroundModel(x, EQ(), l, p)
-    amorphous = PhaseModel(nothing, nothing, bg)
-    result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-            maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
-    println(norm(normalized_y - evaluate!(zero(x), result, x)))
-    plt = plot(x, normalized_y)
-    plot!(x, evaluate!(zero(x), result, x))
-    display(plt)
-    return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
-end
-
-
-function get_phase_model_with_phase_names(phase_names::AbstractSet,
-                                          phases::AbstractArray,
-                                          background::BackgroundModel=nothing,
-                                          wildcard::OptionalPhases=nothing)
-
-    l = []
-    if isempty(phase_names)
-        return PhaseModel(phases[l], wildcard, background)
-    end
-
-    for phase_name in phase_names
-        for i in eachindex(phases)
-            if phases[i].name == phase_name
-                push!(l, i)
-            end
-        end
-    end
-
-    PhaseModel(phases[l], wildcard, background)
-end
-
-# returns a linear map from [a, b] to [0, 1]
-unit_transform(a, b) = x->(x-a)/(b-a)
-inv_unit_transform(a, b) = x -> (b-a)*x + a # inverse unit transform
-

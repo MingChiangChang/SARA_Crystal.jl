@@ -1,6 +1,6 @@
 using NPZ
 using CrystalShift
-using CrystalShift: FixedPseudoVoigt
+using CrystalShift: FixedPseudoVoigt, OptimizationSettings
 
 using CrystalTree: TreeSearchSettings
 
@@ -54,7 +54,14 @@ constant_offset = Val(constant_offset_bool)
 T_offset = [200, 10] # number of degrees from T_max we are generating data for
 relevant_T = get_relevant_T(constant_offset, T_offset..., nout)
 x = collect(-1.:.01:1.)
-# @time t = entropy_to_global(x, q, data, cs;
+rank = 4
+h_threshold = .1
+frac_threshold = .1
+condition = (1300, 3)
+opt_stn = OptimizationSettings{Float64}(0.1, [1., .5, .5], [0.05, 10., 1.], 128, true, LM, "LS", Simple)
+stg_stn = STGSettings(rank, h_threshold, frac_threshold, 8., kernel, 0.05, tp, condition, Val(false))
+ts_stn = TreeSearchSettings{Float64}(2, 3, opt_stn)
+# @time t = phase_to_global(x, q, data, cs;
 #                         rank =4,
 #                         length_scale=8.,
 #                         depth=2,
@@ -68,6 +75,4 @@ x = collect(-1.:.01:1.)
 #                         frac_threshold=0.1,
 #                         σ=0.05, kernel=kernel,
 #                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
-ts_stn = TreeSearchSettings{Float64}()
-stg_stn = STGSettings()
-@time t = phase_to_global(x, q, data, cs, s; ts_stn=ts_stn, stg_stn=stg_stn, relevant_T = relevant_T)
+@time t = entropy_to_global(x, q, data, cs, s; ts_stn=ts_stn, stg_stn=stg_stn, relevant_T = relevant_T)

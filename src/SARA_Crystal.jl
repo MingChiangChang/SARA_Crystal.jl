@@ -1,6 +1,6 @@
 module SARA_Crystal
 using CrystalShift
-using CrystalShift: OptionalPhases, get_fraction
+using CrystalShift: OptionalPhases, get_fraction, OptimizationSettings
 using CrystalTree
 using CrystalTree: Lazytree, get_probabilities, TreeSearchSettings
 using GaussianDistributions
@@ -15,6 +15,7 @@ using Plots
 
 using Base.Threads
 
+include("util.jl")
 include("nmf.jl")
 include("temperature_profile.jl")
 include("striptoglobalsettings.jl")
