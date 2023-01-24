@@ -29,5 +29,5 @@ end
 function STGSettings(nmf_rank::Integer, h_threshold::Real, frac_threshold::Real,
       background_length::Real, kernel, σ::Real, TP,
       condition::NTuple)
-      STGSettings(nmf_rank, h_threshold, frac_threshold, background_length, kernel,σ, TP,condition, Val{true})
+      STGSettings(nmf_rank, h_threshold, frac_threshold, background_length, kernel,σ, TP,condition, Val(true))
 end
