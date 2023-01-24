@@ -3,7 +3,7 @@ struct StripeToGlobalSettings
     h_threshold::Real
     frac_threshold::Real
     background_length::Real
-    kernel::AbstractKernel
+    kernel
     σ::Real
     TP::TemperatureProfile
     condition::NTuple
@@ -27,7 +27,7 @@ function STGSettings()
 end
 
 function STGSettings(nmf_rank::Integer, h_threshold::Real, frac_threshold::Real,
-      background_length::Real, kernel::AbstractKernel, σ::Real, TP::TemperatureProfile,
+      background_length::Real, kernel, σ::Real, TP::TemperatureProfile,
       condition::NTuple)
       STGSettings(nmf_rank, h_threshold, frac_threshold, background_length, kernel,σ, TP,condition, Val{true})
 end
