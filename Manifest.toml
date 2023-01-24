@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "4e992289e5ce4796bbc94d4da62bbd96ebe9eecd"
+project_hash = "e666b4b209ee5f75a60f7b56e1f5fca85dd9f3bb"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -279,7 +279,7 @@ version = "4.1.1"
 
 [[deps.CrystalShift]]
 deps = ["CSV", "CovarianceFunctions", "DataFrames", "DelimitedFiles", "ForwardDiff", "JSON", "LazyInverses", "LinearAlgebra", "NPZ", "OptimizationAlgorithms", "Plots", "ProgressBars", "PyCall", "Random", "SpecialFunctions", "StatsBase", "Test"]
-git-tree-sha1 = "110bbef9a96d8b77f5825686f31ca69caf7c6319"
+git-tree-sha1 = "f024fb58cdb58522dfabe5dd364904a42b8bfb49"
 repo-rev = "main"
 repo-url = "https://github.com/MingChiangChang/CrystalShift.jl"
 uuid = "fb120844-f04e-4a6b-a6eb-278194263097"
@@ -287,7 +287,7 @@ version = "0.1.0"
 
 [[deps.CrystalTree]]
 deps = ["Combinatorics", "CovarianceFunctions", "CrystalShift", "ForwardDiff", "LazyInverses", "LinearAlgebra", "LogExpFunctions", "OptimizationAlgorithms", "Plots", "ProgressBars", "StatsBase", "Test"]
-git-tree-sha1 = "00597151aa8373ad2ffaed6b316b6171ec5a0083"
+git-tree-sha1 = "d63ac0962af4ad6b5a10e15097a5ad1fdeec7755"
 repo-rev = "main"
 repo-url = "https://github.com/MingChiangChang/CrystalTree.jl"
 uuid = "9c8cff83-2ad6-4961-8214-2a9086396538"
@@ -803,14 +803,6 @@ deps = ["LinearAlgebra", "Test"]
 git-tree-sha1 = "1e4635d2e2bb50065feb4f3bc56ab38037916601"
 uuid = "9f18896c-49a9-43cc-8eef-c455a8a119c6"
 version = "1.1.4"
-
-[[deps.LazyLinearAlgebra]]
-deps = ["DataStructures", "LazyInverse", "LinearAlgebra", "LinearAlgebraExtensions", "Test", "WoodburyIdentity"]
-git-tree-sha1 = "3048d9e5ed27a3e97b4c09bf96ee783fe618d81e"
-repo-rev = "master"
-repo-url = "https://github.com/SebastianAment/LazyLinearAlgebra.jl.git"
-uuid = "2243f6fe-7ec1-4b08-8ffc-03329353bf89"
-version = "0.1.0"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
