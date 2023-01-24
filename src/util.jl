@@ -34,6 +34,11 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     println("Constructed background model")
     amorphous = PhaseModel(nothing, nothing, bg)
     println("Phase model constructed")
+    println(typeof(amorphous))
+    println(typeof(normalized_y))
+    println(typeof(std_noise))
+    println(typeof(mean_θ))
+    println(typeof(maxiter))
     result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
                        maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=true)
     println("optimized")
