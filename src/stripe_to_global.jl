@@ -138,7 +138,7 @@ function get_global_entropy(temperature_process::Gaussian,
 end
 
 function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
-                         cs::AbstractVector{<:CrystalPhase}, s;
+                         cs::AbstractVector{<:CrystalPhase};
                          ts_stn::CrystalTree.TreeSearchSettings,
                          stg_stn::STGSettings,
                          relevant_T)
@@ -255,10 +255,13 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
 
             # Tree search
             lt = Lazytree(cs, x, 5)
+            println("Lazytree created")
             result = search!(lt, x, y, ts_stn)
+            println("search done")
             results = reduce(vcat, result)
             println(size(results))
             probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
+            println("probability estimated")
             result_node = results[argmax(probs)]
             result_nodes[i] = result_node
         end
