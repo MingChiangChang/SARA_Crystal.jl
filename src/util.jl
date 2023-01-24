@@ -35,7 +35,7 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     amorphous = PhaseModel(nothing, nothing, bg)
     println("Phase model constructed")
     result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
+                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=true)
     println("optimized")
     println(norm(normalized_y - evaluate!(zero(x), result, x)))
     # plt = plot(x, normalized_y)
