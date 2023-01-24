@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "e666b4b209ee5f75a60f7b56e1f5fca85dd9f3bb"
+project_hash = "40db1adad1376628091ef39d67108b3b13470197"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -626,17 +626,6 @@ git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
 version = "0.1.1"
 
-[[deps.InfiniteArrays]]
-deps = ["ArrayLayouts", "FillArrays", "Infinities", "LazyArrays", "LinearAlgebra", "Statistics"]
-git-tree-sha1 = "7725e01b4b6e3f72c78979fa029da1e52c4541e3"
-uuid = "4858937d-0d70-526a-a4dd-2d5cb5dd786c"
-version = "0.12.9"
-
-[[deps.Infinities]]
-git-tree-sha1 = "7cafb0d59dabad36e451c80b03505ecd599ce924"
-uuid = "e1ba4f0e-776d-440f-acd9-e1d2e9742647"
-version = "0.1.6"
-
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
@@ -790,14 +779,6 @@ version = "0.22.16"
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
-[[deps.LazyInverse]]
-deps = ["LinearAlgebra", "Test"]
-git-tree-sha1 = "31c384b494aaf4220e3724e9ca1e94839b643f42"
-repo-rev = "master"
-repo-url = "https://github.com/SebastianAment/LazyInverse.jl.git"
-uuid = "d0afe1cb-6484-4949-b9e9-61bc645ed6c7"
-version = "0.1.0"
-
 [[deps.LazyInverses]]
 deps = ["LinearAlgebra", "Test"]
 git-tree-sha1 = "1e4635d2e2bb50065feb4f3bc56ab38037916601"
@@ -877,14 +858,6 @@ version = "2.36.0+0"
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-
-[[deps.LinearAlgebraExtensions]]
-deps = ["FFTW", "InfiniteArrays", "LazyArrays", "LazyInverse", "LinearAlgebra", "StatsBase", "Test"]
-git-tree-sha1 = "14182ce638c9d50c8c2422facb4365beb801a4be"
-repo-rev = "master"
-repo-url = "https://github.com/SebastianAment/LinearAlgebraExtensions.jl.git"
-uuid = "cb114d4a-f1bd-499c-ad9e-7f2ed74575b9"
-version = "0.1.0"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
@@ -1567,14 +1540,6 @@ deps = ["LazyInverses", "LinearAlgebra", "Test"]
 git-tree-sha1 = "a54a7925b96f109de91094ef83e2ebd3f72a593a"
 uuid = "9f1bac23-581c-4ebc-bd36-df60d764636d"
 version = "1.1.0"
-
-[[deps.WoodburyIdentity]]
-deps = ["BenchmarkTools", "LazyInverses", "LinearAlgebra", "Test"]
-git-tree-sha1 = "0d21010924b2fc7639530aa990e1ab87a89217d9"
-repo-rev = "master"
-repo-url = "https://github.com/SebastianAment/WoodburyIdentity.jl.git"
-uuid = "49563772-d9e4-48b4-a8b6-4cbe661ead9f"
-version = "0.1.0"
 
 [[deps.WorkerUtilities]]
 git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
