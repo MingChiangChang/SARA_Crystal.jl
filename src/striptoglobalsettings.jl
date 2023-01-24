@@ -5,7 +5,7 @@ struct StripeToGlobalSettings
     background_length::Real
     kernel
     σ::Real
-    TP::TemperatureProfile
+    TP
     condition::NTuple
     input_noise::Union{Val{true}, Val{false}}
 end
