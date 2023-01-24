@@ -247,6 +247,7 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
     result_nodes = Vector{Node}(undef, stg_stn.nmf_rank)
 
     for i in 1:size(W, 2)
+        println("$(i)th component")
         if !is_amorphous(x, W[:, i], stg_stn.background_length, 10.) # temperal; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(W[:, i], x, stg_stn.background_length)

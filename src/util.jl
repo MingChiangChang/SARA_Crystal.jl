@@ -31,9 +31,12 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
                     threshold::Real = DEFAULT_RES_THRESH)
     normalized_y =  y./maximum(y)
     bg = BackgroundModel(x, EQ(), l, p)
+    println("Constructed background model")
     amorphous = PhaseModel(nothing, nothing, bg)
+    println("Phase model constructed")
     result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-    maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
+                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
+    println("optimized")
     println(norm(normalized_y - evaluate!(zero(x), result, x)))
     # plt = plot(x, normalized_y)
     # plot!(x, evaluate!(zero(x), result, x))
