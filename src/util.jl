@@ -40,7 +40,7 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     println(typeof(mean_θ))
     println(typeof(maxiter))
     result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=true)
+                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
     println("optimized")
     println(norm(normalized_y - evaluate!(zero(x), result, x)))
     # plt = plot(x, normalized_y)
@@ -62,7 +62,7 @@ function get_phase_fractions!(fractions::AbstractMatrix,
                 fracs = get_fraction(result_nodes[i].phase_model.CPs)
                 for phase_idx in eachindex(fracs)
                     if fracs[phase_idx] >= frac_threshold # Threshold can be 0
-                        fractions[colindex, result_nodes[i].phase_model.CPs[phase_idx].id] +=  W_max[i] * H[i, colindex] * fracs[phase_idx]
+                        fractions[colindex, result_nodes[i].phase_model.CPs[phase_idx].id+1] +=  W_max[i] * H[i, colindex] * fracs[phase_idx]
                     end
                 end
             end

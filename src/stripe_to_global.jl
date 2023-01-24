@@ -144,7 +144,8 @@ function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix
                          relevant_T)
     println("called")
     y = get_phase_fractions(q, Y, cs, ts_stn=ts_stn, stg_stn=stg_stn)
-    println(y)
+    plt = heatmap(y)
+    display(plt)
     stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], stg_stn, relevant_T)
 end
 

@@ -61,7 +61,7 @@ condition = (1300, 3)
 
 opt_stn = OptimizationSettings{Float64}(0.1, [1., .5, .5], [0.05, 10., 1.], 128, true, LM, "LS", Simple)
 stg_stn = STGSettings(rank, h_threshold, frac_threshold, 8., kernel, 0.05, tp, condition, Val(false))
-ts_stn = TreeSearchSettings{Float64}(3, 3, opt_stn)
+ts_stn = TreeSearchSettings{Float64}(2, 3, opt_stn)
 # @time t = phase_to_global(x, q, data, cs;
 #                         rank =4,
 #                         length_scale=8.,
@@ -76,4 +76,4 @@ ts_stn = TreeSearchSettings{Float64}(3, 3, opt_stn)
 #                         frac_threshold=0.1,
 #                         σ=0.05, kernel=kernel,
 #                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
-@time t = entropy_to_global(x, q, data, cs; ts_stn=ts_stn, stg_stn=stg_stn, relevant_T = relevant_T)
+@time t = phase_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
