@@ -5,7 +5,7 @@ const DEFAULT_FRAC_THRESH = 0.1
 # Process single stripe to global infomation
 # For 2D case
 function stripe_to_global(x::AbstractVector, y::AbstractVector{<:AbstractVector},
-                        σ::Real, k, P::TemperatureProfile, T_max::Real, log10_τ::Real,
+                        σ::Real, k, P, T_max::Real, log10_τ::Real,
                         relevant_T, input_noise::Union{Val{true}, Val{false}} = Val(true))
     stripe_to_global(x, y, σ, k, P, (T_max, log10_τ), relevant_T, input_noise)[2:3]
 end
@@ -23,7 +23,7 @@ function stripe_to_global(x::AbstractVector, y::AbstractVector{<:AbstractVector}
 end
 
 function stripe_to_global(x::AbstractVector, y::AbstractVector{<:AbstractVector},
-                            σ::Real, k, P::TemperatureProfile, condition::NTuple,
+                            σ::Real, k, P, condition::NTuple,
                             relevant_T, input_noise::Union{Val{true}, Val{false}} = Val(true))
     all(==(length(x)), length.(y)) || throw(DimensionMismatch("x and elements of y do not have same lengths: length(x) = $(length(x)) and length.(y) = $(length.(y))"))
     T_max, log10_τ = condition[1:2]
@@ -43,7 +43,7 @@ end
 
 function get_temperature_process(G::Gaussian, x::AbstractVector,
                                 y::AbstractVector, σ::Real,
-                                P::TemperatureProfile, T_max::Real, log10_τ::Real,
+                                P, T_max::Real, log10_τ::Real,
                                 input_noise::Val{false})
     C = conditional(G, x, Gaussian(y, σ^2), tol = 1e-6) # condition Gaussian process in position
     plt = plot(x, mean(C).(x), ribbon=var(C).(x))
@@ -56,7 +56,7 @@ end
 # same as above but takes into account the uncertainty in the temperature
 function get_temperature_process(G::Gaussian, x::AbstractVector,
                                 y::AbstractVector, σ_out::Real,
-                                P::TemperatureProfile, T_max::Real, log10_τ::Real,
+                                P, T_max::Real, log10_τ::Real,
                                 input_noise::Val{true})
     # first, get regular GP w.r.t. T
     C = get_temperature_process(G, x, y, σ_out, P, T_max, log10_τ, Val(false))
@@ -109,7 +109,7 @@ function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
 end
 
 function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
-                                σ::Real, k, P::TemperatureProfile, condition::NTuple,
+                                σ::Real, k, P, condition::NTuple,
                                 relevant_T, input_noise::Union{Val{true}, Val{false}} = Val(true),
                                 temperature_domain::NTuple{2, <:Real} = (0, 1400))
     all(==(length(x)), length(y)) || throw(DimensionMismatch("x and elements of y do not have same lengths: length(x) = $(length(x)) and length.(y) = $(length.(y))"))
@@ -161,7 +161,7 @@ function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix
                          h_threshold::Real,
                          frac_threshold::Real,
                          σ, kernel,
-                         P::TemperatureProfile,
+                         P,
                          condition::NTuple,
                          relevant_T,
                          input_noise::Union{Val{true}, Val{false}} = Val(false))
@@ -253,6 +253,7 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
             lt = Lazytree(cs, x, 5)
             result = search!(lt, x, y, ts_stn)
             results = reduce(vcat, result)
+            println(size(results))
             probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
             result_node = results[argmax(probs)]
             result_nodes[i] = result_node
