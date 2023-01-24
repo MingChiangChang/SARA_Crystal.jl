@@ -143,6 +143,7 @@ function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix
                          stg_stn::STGSettings,
                          relevant_T)
     y = get_phase_fractions(q, Y, cs, ts_stn=ts_stn, stg_stn=stg_stn)
+    println(y)
     stripe_to_global(x, [y[:,i] for i in 1:size(y,2)], stg_stn, relevant_T)
 end
 
@@ -239,13 +240,16 @@ end
 # Simple version, not doing refinement
 function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings)
     pr = ts_stn.opt_stn.priors
+    println("Prior set")
     W, H, _ = xray(Array(transpose(Y)), stg_stn.nmf_rank)
+    println("NMF done")
     result_nodes = Vector{Node}(undef, stg_stn.nmf_rank)
 
     for i in 1:size(W, 2)
         if !is_amorphous(x, W[:, i], stg_stn.background_length, 10.) # temperal; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(W[:, i], x, stg_stn.background_length)
+            println("MCBL done")
             W[:, i] -= b
             y = W[:,i] / maximum(W[:, i])
 
