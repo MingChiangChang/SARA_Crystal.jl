@@ -7,6 +7,8 @@ using GaussianDistributions
 using GaussianDistributions: input_transformation
 using CovarianceFunctions: EQ, Lengthscale, MaternP, AbstractKernel
 using BackgroundSubtraction: mcbl
+using OptimizationAlgorithms
+using OptimizationAlgorithms: LevenbergMarquart, LevenbergMarquartSettings
 
 using PyCall
 using ForwardDiff

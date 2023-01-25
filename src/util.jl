@@ -14,6 +14,7 @@ function renormalize!(y::AbstractMatrix)
             y[i,:] ./= sum(y[i, :])
         end
     end
+    y
 end
 
 get_entropy(p::Real) = p == 0 ? 0 : - p * log(p)
@@ -31,32 +32,50 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
                     threshold::Real = DEFAULT_RES_THRESH)
     normalized_y =  y./maximum(y)
     bg = BackgroundModel(x, EQ(), l, p)
-    println("Constructed background model")
     amorphous = PhaseModel(nothing, nothing, bg)
-    println("Phase model constructed")
-    println(typeof(amorphous))
-    println(typeof(normalized_y))
-    println(typeof(std_noise))
-    println(typeof(mean_θ))
-    println(typeof(maxiter))
     result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
                        maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
-    println("optimized")
-    println(norm(normalized_y - evaluate!(zero(x), result, x)))
+    # println(norm(normalized_y - evaluate!(zero(x), result, x)))
     # plt = plot(x, normalized_y)
     # plot!(x, evaluate!(zero(x), result, x))
     # display(plt)
     return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
 end
 
+function scaling_fit(base_pattern::AbstractVector,
+                     new_pattern::AbstractVector,
+                     x0::AbstractVector)
+    stn = LevenbergMarquartSettings(min_resnorm = 1e-2, min_res = 1e-10,
+                    min_decrease = 1e-6, min_iter=10, max_iter = 128,
+                    decrease_factor = 7, increase_factor = 10, max_step = 0.1)
+
+    function t(r, p)
+        @. r = new_pattern - base_pattern*p[1]
+        r
+    end
+
+    lm = LevenbergMarquart(t, x0, zero(new_pattern))
+    params, _ = OptimizationAlgorithms.optimize!(lm, x0, zero(new_pattern), stn, 1e-6, Val(false))
+    return params
+end
+
 function get_phase_fractions!(fractions::AbstractMatrix,
                                 W::AbstractMatrix,
                                 H::AbstractMatrix,
+                                amorphous_frac::AbstractVector,
                                 result_nodes::AbstractVector,
                                 h_thresh::Real,
                                 frac_threshold::Real)
-    W_max = [maximum(W[:, i]) for i in 1:size(W, 2)]
-    for colindex in 1:size(H, 2)
+    # Collect amorphous contribution
+    for i in axes(H, 1)
+        for j in axes(H, 2)
+            fractions[j, end] += H[i, j] * amorphous_frac[i]
+        end
+    end
+
+    # Collect phase contribution
+    W_max = [maximum(W[:, i]) for i in axes(W, 2)]
+    for colindex in axes(H, 2)
         for i in eachindex(result_nodes)
             if  isassigned(result_nodes, i) && H[i, colindex] > h_thresh
                 fracs = get_fraction(result_nodes[i].phase_model.CPs)
@@ -68,9 +87,24 @@ function get_phase_fractions!(fractions::AbstractMatrix,
             end
         end
     end
+
+    #normalize
+    for row in eachrow(fractions)
+        if sum(row[1:end-1]) > 0.
+            row[1:end-1] ./= sum(row[1:end-1]) / (1-row[end])
+        else
+            row[end] = 1.
+        end
+    end
     fractions
 end
 
+function classify_amorphous(W::AbstractMatrix, H::AbstractMatrix, n = 16)
+    # Adapted from https://github.com/SebastianAment/PhaseMapping.jl
+    h = sum(@view(H[:,1:n]), dims = 2)
+    i = argmax(vec(h))
+    return i, @view W[:, i]
+end
 
 function get_phase_model_with_phase_names(phase_names::AbstractSet,
                         phases::AbstractArray,

@@ -53,7 +53,7 @@ constant_offset_bool = true
 constant_offset = Val(constant_offset_bool)
 T_offset = [200, 10] # number of degrees from T_max we are generating data for
 relevant_T = get_relevant_T(constant_offset, T_offset..., nout)
-x = collect(-1.:.01:1.)
+x = collect(-1.15:.01:.85)
 rank = 4
 h_threshold = .1
 frac_threshold = .1
@@ -76,4 +76,4 @@ ts_stn = TreeSearchSettings{Float64}(2, 3, opt_stn)
 #                         frac_threshold=0.1,
 #                         σ=0.05, kernel=kernel,
 #                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
-@time t = phase_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
+@time condition, entropy, uncertainty, phase_fraction = entropy_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)

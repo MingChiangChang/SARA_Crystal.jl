@@ -75,12 +75,14 @@ function (P::TemperatureProfile)(T_max::Real, log10_τ::Real, x::Real)
     P(T_max, log10_τ)(x)
 end
 # WARNING: temperature profile is a function of position in μm
+# FIXME: Modify this if we are using slightly different normal distribution form
 function _T_helper(T_max, fwhm, ampl, x::Real)
     return @. T_max * exp(-abs(2x / fwhm)^ampl)
 end
 
 profile(P::TemperatureProfile, T_max, log10_τ) = P(T_max, log10_τ)
 # returns the positive side of the inverse mapping T to position in mm
+# FIXME: Modify this if we are using slightly different normal distribution form
 function inverse_profile(P::TemperatureProfile, T_max::Real, log10_τ::Real)
     a = P.amplitude(T_max, log10_τ)
     f = P.width(T_max, log10_τ)
