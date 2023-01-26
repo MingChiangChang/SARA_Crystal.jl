@@ -232,5 +232,4 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
 
     get_phase_fractions!(fractions, Ws, Hs, amorphous_frac,
                          result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
-    fractions
 end
