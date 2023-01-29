@@ -1,6 +1,7 @@
 module SARA_Crystal
 using CrystalShift
 using CrystalShift: OptionalPhases, get_fraction, OptimizationSettings
+using CrystalShift: uncertainty, var_lognormal
 using CrystalTree
 using CrystalTree: Lazytree, get_probabilities, TreeSearchSettings
 using GaussianDistributions
@@ -12,6 +13,8 @@ using OptimizationAlgorithms: LevenbergMarquart, LevenbergMarquartSettings
 
 using PyCall
 using ForwardDiff
+using Statistics
+using Measurements
 
 using Plots
 

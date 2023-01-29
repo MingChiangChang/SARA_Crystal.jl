@@ -76,4 +76,5 @@ ts_stn = TreeSearchSettings{Float64}(2, 3, opt_stn)
 #                         frac_threshold=0.1,
 #                         σ=0.05, kernel=kernel,
 #                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
-@time condition, entropy, uncertainty, phase_fraction = entropy_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
+@time condition, entropy, uncertainty, phase_fraction, fraction_uncer =
+       entropy_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)

@@ -59,9 +59,10 @@ function scaling_fit(base_pattern::AbstractVector,
     return params
 end
 
-function get_phase_fractions!(fractions::AbstractMatrix,
+function calculate_fractions!(fractions::AbstractMatrix,
                                 W::AbstractMatrix,
                                 H::AbstractMatrix,
+                                fraction_of_H::AbstractMatrix,
                                 amorphous_frac::AbstractVector,
                                 result_nodes::AbstractVector,
                                 h_thresh::Real,
@@ -76,12 +77,13 @@ function get_phase_fractions!(fractions::AbstractMatrix,
     # Collect phase contribution
     W_max = [maximum(W[:, i]) for i in axes(W, 2)]
     for colindex in axes(H, 2)
-        for i in eachindex(result_nodes)
-            if  isassigned(result_nodes, i) && H[i, colindex] > h_thresh
-                fracs = get_fraction(result_nodes[i].phase_model.CPs)
-                for phase_idx in eachindex(fracs)
-                    if fracs[phase_idx] >= frac_threshold # Threshold can be 0
-                        fractions[colindex, result_nodes[i].phase_model.CPs[phase_idx].id+1] +=  W_max[i] * H[i, colindex] * fracs[phase_idx]
+        for i in axes(fraction_of_H, 1)
+            if isassigned(result_nodes, i) && H[i, colindex] > h_thresh
+                fraction_value = getproperty.(fraction_of_H[i,:], :val)
+                fraction_value ./= maximum(fraction_value)
+                for phase_idx in eachindex(fraction_value)
+                    if fraction_value[phase_idx] >= frac_threshold # Threshold can be 0
+                        fractions[colindex, phase_idx] +=  W_max[i] * H[i, colindex] * fraction_of_H[i, phase_idx]
                     end
                 end
             end
@@ -90,13 +92,15 @@ function get_phase_fractions!(fractions::AbstractMatrix,
 
     #normalize
     for row in eachrow(fractions)
+        #println(sum(getproperty.(row[1:end-1], :val)))
         if sum(row[1:end-1]) > 0.
             row[1:end-1] ./= sum(row[1:end-1]) / (1-row[end])
         else
             row[end] = 1.
         end
     end
-    fractions
+
+    getproperty.(fractions, :val), getproperty.(fractions, :err)
 end
 
 function classify_amorphous(W::AbstractMatrix, H::AbstractMatrix, n = 16)
