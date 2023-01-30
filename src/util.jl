@@ -39,6 +39,7 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     # plt = plot(x, normalized_y)
     # plot!(x, evaluate!(zero(x), result, x))
     # display(plt)
+    # IDEA: can do peak detection of background subtracted pattern instead of l2 norm
     return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
 end
 
@@ -59,38 +60,61 @@ function scaling_fit(base_pattern::AbstractVector,
     return params
 end
 
-function calculate_fractions!(fractions::AbstractMatrix,
+function calculate_unnormalized_fractions!(fractions::AbstractMatrix,
                                 W::AbstractMatrix,
                                 H::AbstractMatrix,
-                                fraction_of_H::AbstractMatrix,
+                                phase_fraction_of_bases::AbstractMatrix,
                                 amorphous_frac::AbstractVector,
                                 result_nodes::AbstractVector,
                                 h_thresh::Real,
-                                frac_threshold::Real)
+                                frac_thresh::Real)
     # Collect amorphous contribution
+    collect_amorphous_frac!(fractions, H, amorphous_frac)
+
+    # Collect phase contribution
+    collect_phase_contribution!(fractions, W, H, result_nodes, phase_fraction_of_bases, h_thresh, frac_thresh)
+
+    #normalize
+    # normalize_with_amorphous!(fractions)
+    # for row in eachrow(fractions)
+    #     #println(sum(getproperty.(row[1:end-1], :val)))
+    #     if sum(row[1:end-1]) > 0.
+    #         row[1:end-1] ./= sum(row[1:end-1]) / (1-row[end])
+    #     else
+    #         row[end] = 1.
+    #     end
+    # end
+
+    getproperty.(fractions, :val), getproperty.(fractions, :err)
+end
+
+function collect_amorphous_frac!(fractions, H, amorphous_frac)
     for i in axes(H, 1)
         for j in axes(H, 2)
             fractions[j, end] += H[i, j] * amorphous_frac[i]
         end
     end
+end
 
-    # Collect phase contribution
+function collect_phase_contribution!(fractions, W, H, result_nodes, phase_fraction_of_bases, h_thresh, frac_thresh)
     W_max = [maximum(W[:, i]) for i in axes(W, 2)]
     for colindex in axes(H, 2)
-        for i in axes(fraction_of_H, 1)
+        for i in axes(phase_fraction_of_bases, 1)
             if isassigned(result_nodes, i) && H[i, colindex] > h_thresh
-                fraction_value = getproperty.(fraction_of_H[i,:], :val)
+                fraction_value = getproperty.(phase_fraction_of_bases[i,:], :val)
                 fraction_value ./= maximum(fraction_value)
                 for phase_idx in eachindex(fraction_value)
-                    if fraction_value[phase_idx] >= frac_threshold # Threshold can be 0
-                        fractions[colindex, phase_idx] +=  W_max[i] * H[i, colindex] * fraction_of_H[i, phase_idx]
+                    if fraction_value[phase_idx] >= frac_thresh # Threshold can be 0
+                        fractions[colindex, phase_idx] +=  W_max[i] * H[i, colindex] * phase_fraction_of_bases[i, phase_idx]
                     end
                 end
             end
         end
     end
+end
 
-    #normalize
+
+function normalize_with_amorphous!(fractions)
     for row in eachrow(fractions)
         #println(sum(getproperty.(row[1:end-1], :val)))
         if sum(row[1:end-1]) > 0.
@@ -99,8 +123,6 @@ function calculate_fractions!(fractions::AbstractMatrix,
             row[end] = 1.
         end
     end
-
-    getproperty.(fractions, :val), getproperty.(fractions, :err)
 end
 
 function classify_amorphous(W::AbstractMatrix, H::AbstractMatrix, n = 16)

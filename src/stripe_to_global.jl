@@ -183,7 +183,7 @@ function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatr
                         ts_stn::CrystalTree.TreeSearchSettings,
                         stg_stn::STGSettings,
                         relevant_T)
-    fractions, fraction_uncer, probs = get_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
+    fractions, fraction_uncer = get_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
     # entropy_renormalize!(y)
     entropy = get_entropy(fractions)
     return stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)..., fractions, fraction_uncer
@@ -201,7 +201,7 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
     Ws = @view W[: ,filter(!=(amorphous_idx), 1:size(W, 2))]
     Hs = @view H[filter(!=(amorphous_idx), 1:size(H, 1)), :]
 
-    fraction_of_H = zeros(Measurement{Float64}, (size(Hs, 1), length(cs)))
+    phase_frac_of_bases = zeros(Measurement{Float64}, (size(Hs, 1), length(cs)))
     amorphous_frac = zeros(Float64, size(Ws, 2))
     fractions = zeros(Measurement{Float64}, (size(Y, 1), length(cs)+1))
     fractions[:,end] += H[amorphous_idx, :]
@@ -216,41 +216,41 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
             amorphous_frac[i] = amorphous_scale[1]
 
             Ws[:, i] -= b
-            y = Ws[:,i] / maximum(W[:, i])
+            y = Ws[:,i] / maximum(Ws[:, i])
 
             # Tree search
             lt = Lazytree(cs, x, 5) # 5 is just random number that is not used
             result = search!(lt, x, y, ts_stn)
             results = reduce(vcat, result)
             probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
-            # TODO: Need to do probability check here
-            # Flag it?
+            # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
             result_node = results[argmax(probs)]
             result_node_prob[i] = maximum(probs)
             result_nodes[i] = result_node
-            fraction_of_H[i, :] = get_phase_ratio_with_uncertainty(fraction_of_H[i, :], result_node.phase_model.CPs, x, y)
+            phase_frac_of_bases[i, :] = get_phase_ratio_with_uncertainty(phase_frac_of_bases[i, :],
+                                                                        result_node.phase_model.CPs,
+                                                                        x, y, ts_stn.opt_stn)
         else
             # Count as amorphous
             fractions[1:end] += Hs[i,:]
         end
     end
 
-    frac, frac_uncer = calculate_fractions!(fractions, Ws, Hs, fraction_of_H, amorphous_frac,
-                         result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
-    frac, frac_uncer, result_node_prob
+    frac, frac_uncer = calculate_unnormalized_fractions!(fractions, Ws, Hs, phase_frac_of_bases, amorphous_frac,
+                                                        result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
+    frac, frac_uncer
 end
 
 function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::AbstractVector, x::AbstractVector, y::AbstractVector,
-                                        verbose::Bool=false)
+                                        opt_stn::OptimizationSettings, scaled::Bool=false)
 
     ind = get_activation_indicies(length(CPs))
-    act_uncer = uncertainty(CPs, x, y, verbose)[ind]
-    act = log.([CP.act/CP.norm_constant for CP in CPs])
-    std = sqrt.(var_lognormal.(act, sqrt.(act_uncer)))
-    act = exp.(act .± std)
+    act_uncer = uncertainty(CPs, x, y, opt_stn, scaled)[ind]
+    log_act = log.([CP.act for CP in CPs])
+    act = exp.(log_act .± act_uncer)
 
     for i in eachindex(CPs)
-        fraction[CPs[i].id+1] += act[i]
+        fraction[CPs[i].id+1] += act[i] / CPs[i].norm_constant
     end
 
     fraction
