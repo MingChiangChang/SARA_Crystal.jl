@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 BackgroundSubtraction = "9977cdcb-3521-4027-9f3f-3caff6505f42"
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 CovarianceFunctions = "b3329135-7958-41d4-bb02-e084c5a526bf"
 CrystalShift = "fb120844-f04e-4a6b-a6eb-278194263097"
 CrystalTree = "9c8cff83-2ad6-4961-8214-2a9086396538"

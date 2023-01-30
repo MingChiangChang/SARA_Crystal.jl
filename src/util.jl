@@ -70,21 +70,7 @@ function calculate_unnormalized_fractions!(fractions::AbstractMatrix,
                                 frac_thresh::Real)
     # Collect amorphous contribution
     collect_amorphous_frac!(fractions, H, amorphous_frac)
-
-    # Collect phase contribution
     collect_phase_contribution!(fractions, W, H, result_nodes, phase_fraction_of_bases, h_thresh, frac_thresh)
-
-    #normalize
-    # normalize_with_amorphous!(fractions)
-    # for row in eachrow(fractions)
-    #     #println(sum(getproperty.(row[1:end-1], :val)))
-    #     if sum(row[1:end-1]) > 0.
-    #         row[1:end-1] ./= sum(row[1:end-1]) / (1-row[end])
-    #     else
-    #         row[end] = 1.
-    #     end
-    # end
-
     getproperty.(fractions, :val), getproperty.(fractions, :err)
 end
 
@@ -151,6 +137,56 @@ function get_phase_model_with_phase_names(phase_names::AbstractSet,
     end
 
     PhaseModel(phases[l], wildcard, background)
+end
+
+function expected_entropy(Ws::AbstractMatrix, Hs::AbstractMatrix, amorphous_frac::AbstractVector, nodes::AbstractMatrix, probability::AbstractMatrix, num_phase::Integer)
+
+    arr = reduce(vcat, [repeat([i], 3) for i in 1:5])
+    all_perm = collect(multiset_permutations(arr, 3))
+
+    overall_prob = similar(all_perm, Float64)
+    node_combinations = Array{Node, 2}(undef, (length(all_perm), 3))
+    entropy = zeros(Float64, size(Hs, 2))
+
+    for i in eachindex(all_perm)
+        overall_prob[i] = prod(getindex.((probability,), collect(1:3), all_perm[i]))
+        node_combinations[i, :] = getindex.((nodes,), collect(1:3), all_perm[i])
+    end
+    overall_prob ./= sum(overall_prob)
+    # display(overall_prob)
+    normalization = [maximum(Ws[:, i]) for i in axes(Ws, 2)]
+    for i in axes(Hs, 2)
+        entropy[i] = weighted_entropy(overall_prob,
+                                    combine_activations_to_fraction(normalization, Hs[:, i], amorphous_frac[i], node_combinations, num_phase))
+    end
+
+    entropy
+end
+
+""" Calculate the combined phase fraction at each location for each combination"""
+function combine_activations_to_fraction(normalization::AbstractVector, H::AbstractVector, amorphous_frac::Real,
+                                         node_combinations::AbstractMatrix, num_phase::Integer)
+
+    phase_fraction = zeros(size(node_combinations, 1), num_phase)
+
+    for combination_idx in axes(phase_fraction, 1)
+        for i in eachindex(node_combinations[combination_idx, :])
+            for CP in node_combinations[combination_idx, i].phase_model.CPs
+                phase_fraction[combination_idx, CP.id+1] += normalization[i] * H[i] * CP.act / CP.norm_constant
+            end
+        end
+    end
+
+    phase_fraction[:, end] .= amorphous_frac
+    normalize_with_amorphous!(phase_fraction)
+
+    phase_fraction
+end
+
+
+function weighted_entropy(probabilities::AbstractVector, phase_fractions::AbstractMatrix)
+    entropies = get_entropy(phase_fractions)
+    sum(probabilities .* entropies)
 end
 
 # returns a linear map from [a, b] to [0, 1]

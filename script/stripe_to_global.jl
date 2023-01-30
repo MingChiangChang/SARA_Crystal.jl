@@ -4,7 +4,7 @@ using CrystalShift: FixedPseudoVoigt, OptimizationSettings
 
 using CrystalTree: TreeSearchSettings
 
-using SARA_Crystal: get_phase_fractions, phase_to_global, TemperatureProfile, get_relevant_T
+using SARA_Crystal: get_unnormalized_phase_fractions, phase_to_global, TemperatureProfile, get_relevant_T
 using SARA_Crystal: entropy_to_global, STGSettings
 using CovarianceFunctions
 

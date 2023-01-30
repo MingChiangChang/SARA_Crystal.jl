@@ -1,5 +1,6 @@
 const DEFAULT_H_THRESH = 0.2
 const DEFAULT_FRAC_THRESH = 0.1
+const DEFAULT_VAR = 0.01
 
 
 # Process single stripe to global infomation
@@ -46,6 +47,17 @@ function get_temperature_process(G::Gaussian, x::AbstractVector,
                                 P, T_max::Real, log10_τ::Real,
                                 input_noise::Val{false})
     C = conditional(G, x, Gaussian(y, σ^2), tol = 1e-6) # condition Gaussian process in position
+
+    inv_profile = inverse_profile(P, T_max, log10_τ)
+    t = input_transformation(C, inv_profile) # transform the input of conditional process
+end
+
+function get_temperature_process(G::Gaussian, x::AbstractVector,
+                                 y::AbstractVector, σ::AbstractVector,
+                                 P, T_max::Real, log10_τ::Real,
+                                 input_noise::Val{false})
+    @. σ = max(σ, DEFAULT_VAR)
+    C = conditional(G, x, Gaussian(y, diagm(σ).^2), tol = 1e-6) # condition Gaussian process in position
 
     inv_profile = inverse_profile(P, T_max, log10_τ)
     t = input_transformation(C, inv_profile) # transform the input of conditional process
@@ -110,7 +122,15 @@ function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
 end
 
 function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
-                                σ::Real, k, P, condition::NTuple,
+                                    stg_stn::STGSettings, uncer, relevant_T,
+                                    temperature_domain::NTuple{2, <:Real} = (0, 1400))
+    stripe_entropy_to_global(x, y,
+            uncer, stg_stn.kernel, stg_stn.TP, stg_stn.condition,
+            relevant_T, stg_stn.input_noise, temperature_domain)
+end
+
+function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
+                                σ, k, P, condition::NTuple,
                                 relevant_T, input_noise::Union{Val{true}, Val{false}} = Val(true),
                                 temperature_domain::NTuple{2, <:Real} = (0, 1400))
     all(==(length(x)), length(y)) || throw(DimensionMismatch("x and elements of y do not have same lengths: length(x) = $(length(x)) and length.(y) = $(length.(y))"))
@@ -183,19 +203,21 @@ function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatr
                         ts_stn::CrystalTree.TreeSearchSettings,
                         stg_stn::STGSettings,
                         relevant_T)
-    fractions, fraction_uncer = get_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
-    # entropy_renormalize!(y)
-    entropy = get_entropy(fractions)
-    return stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)..., fractions, fraction_uncer
+    act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
+    entropy = expected_entropy(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
+    _, gp_act, gp_act_uncer = stripe_entropy_to_global(x, act[:,12], stg_stn, act_uncer[:,12], relevant_T)
+    return stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)..., gp_act, gp_act_uncer
 end
 
 
 # Simple version, not doing refinement
-function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings)
+function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings)
     pr = ts_stn.opt_stn.priors
     W, H, _ = xray(Array(transpose(Y)), stg_stn.nmf_rank)
-    result_nodes = Vector{Node}(undef, stg_stn.nmf_rank-1)
-    result_node_prob = Vector{Float64}(undef, stg_stn.nmf_rank-1)
+    best_result_nodes = Vector{Node}(undef, stg_stn.nmf_rank-1)
+    best_result_node_prob = Vector{Float64}(undef, stg_stn.nmf_rank-1)
+    nodes_for_entropy_calculation = Array{Node, 2}(undef, (stg_stn.nmf_rank-1, 5))
+    probability_for_entropy_calculation = zeros(Float64, (stg_stn.nmf_rank-1, 5))
 
     amorphous_idx, amorphous = classify_amorphous(W, H)
     Ws = @view W[: ,filter(!=(amorphous_idx), 1:size(W, 2))]
@@ -224,11 +246,14 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
             results = reduce(vcat, result)
             probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
-            result_node = results[argmax(probs)]
-            result_node_prob[i] = maximum(probs)
-            result_nodes[i] = result_node
+            best_result_node = results[argmax(probs)]
+
+            nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:5]] # FIXME: Magic number
+            probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:5]
+            best_result_node_prob[i] = maximum(probs)
+            best_result_nodes[i] = best_result_node
             phase_frac_of_bases[i, :] = get_phase_ratio_with_uncertainty(phase_frac_of_bases[i, :],
-                                                                        result_node.phase_model.CPs,
+                                                                        best_result_node.phase_model.CPs,
                                                                         x, y, ts_stn.opt_stn)
         else
             # Count as amorphous
@@ -237,15 +262,16 @@ function get_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGS
     end
 
     frac, frac_uncer = calculate_unnormalized_fractions!(fractions, Ws, Hs, phase_frac_of_bases, amorphous_frac,
-                                                        result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
-    frac, frac_uncer
+                                                        best_result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
+    # return all nodes (vector of vector)
+    frac, frac_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation
 end
 
 function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::AbstractVector, x::AbstractVector, y::AbstractVector,
                                         opt_stn::OptimizationSettings, scaled::Bool=false)
 
     ind = get_activation_indicies(length(CPs))
-    act_uncer = uncertainty(CPs, x, y, opt_stn, scaled)[ind]
+    act_uncer = sqrt.(uncertainty(CPs, x, y, opt_stn, scaled)[ind])
     log_act = log.([CP.act for CP in CPs])
     act = exp.(log_act .± act_uncer)
 
