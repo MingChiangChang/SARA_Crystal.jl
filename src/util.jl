@@ -1,5 +1,5 @@
 function entropy_renormalize!(y::AbstractMatrix)
-    for i in 1:size(y, 1)
+    for i in 1:axes(y, 1)
         if(any(x -> x>0, y[i,:]))
             y[i,:] ./= sum(y[i, :])
         else
@@ -9,7 +9,7 @@ function entropy_renormalize!(y::AbstractMatrix)
 end
 
 function renormalize!(y::AbstractMatrix)
-    for i in 1:size(y, 1)
+    for i in axes(y, 1)
         if(any(x -> x>0, y[i,:]))
             y[i,:] ./= sum(y[i, :])
         end
@@ -109,6 +109,7 @@ function normalize_with_amorphous!(fractions)
             row[end] = 1.
         end
     end
+    fractions
 end
 
 function classify_amorphous(W::AbstractMatrix, H::AbstractMatrix, n = 16)

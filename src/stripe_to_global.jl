@@ -1,6 +1,7 @@
 const DEFAULT_H_THRESH = 0.2
 const DEFAULT_FRAC_THRESH = 0.1
 const DEFAULT_VAR = 0.01
+const DEFAULT_TOP_NODE_COUNT = 5
 
 
 # Process single stripe to global infomation
@@ -65,7 +66,7 @@ end
 
 # same as above but takes into account the uncertainty in the temperature
 function get_temperature_process(G::Gaussian, x::AbstractVector,
-                                y::AbstractVector, σ_out::Real,
+                                y::AbstractVector, σ_out,
                                 P, T_max::Real, log10_τ::Real,
                                 input_noise::Val{true})
     # first, get regular GP w.r.t. T
@@ -93,16 +94,11 @@ function get_global_data(temperature_processes::AbstractVector{<:Gaussian},
     UT = similar(DT) # uncertainty
     for i in eachindex(temperature_processes) # for (i, G) in enumerate(temperature_processes)
         C = input_transformation(temperature_processes[i], iut) # inverse of temperature unit-scaling
-        # plt = plot(mean(C).(unit_outer_temperature))
-        # display(plt)
         D = GaussianDistributions.derivative(C) # take the derivative w.r.t. T
         DT[:, i] = mean(D).(unit_outer_temperature) # record mean and var of derivative of each process
         UT[:, i] = var(D).(unit_outer_temperature)
     end
     # euclidean norm of temperature gradients of optical coefficients
-    # println(unit_outer_temperature)
-    # plt = heatmap(DT)
-    # display(plt)
     d, u = zeros(nout), zeros(nout)
     for i in 1:nout
         di, ui = @views DT[i, :], UT[i, :]
@@ -122,10 +118,10 @@ function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
 end
 
 function stripe_entropy_to_global(x::AbstractVector, y::AbstractVector,
-                                    stg_stn::STGSettings, uncer, relevant_T,
+                                    y_uncer, stg_stn::STGSettings, relevant_T,
                                     temperature_domain::NTuple{2, <:Real} = (0, 1400))
     stripe_entropy_to_global(x, y,
-            uncer, stg_stn.kernel, stg_stn.TP, stg_stn.condition,
+            y_uncer, stg_stn.kernel, stg_stn.TP, stg_stn.condition,
             relevant_T, stg_stn.input_noise, temperature_domain)
 end
 
@@ -205,8 +201,17 @@ function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatr
                         relevant_T)
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
     entropy = expected_entropy(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
-    _, gp_act, gp_act_uncer = stripe_entropy_to_global(x, act[:,12], stg_stn, act_uncer[:,12], relevant_T)
-    return stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)..., gp_act, gp_act_uncer
+    gp_act = Vector{Vector{Float64}}()
+    gp_act_uncer = Vector{Vector{Float64}}()
+    for i in axes(act, 2)
+        _, smoothed_act, smoothed_act_uncer = stripe_entropy_to_global(x, act[:, i], act_uncer[:, i], stg_stn, relevant_T)
+        push!(gp_act, smoothed_act)
+        push!(gp_act_uncer, smoothed_act_uncer)
+    end
+    gp_act = transpose(permutedims(hcat(gp_act...)))
+    gp_act_uncer = transpose(permutedims(hcat(gp_act_uncer...)))
+    phase_fraction = normalize_with_amorphous!(act)
+    return stripe_entropy_to_global(x, entropy, stg_stn, relevant_T)..., gp_act, gp_act_uncer, phase_fraction
 end
 
 
@@ -248,8 +253,8 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
             best_result_node = results[argmax(probs)]
 
-            nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:5]] # FIXME: Magic number
-            probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:5]
+            nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]]
+            probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]
             best_result_node_prob[i] = maximum(probs)
             best_result_nodes[i] = best_result_node
             phase_frac_of_bases[i, :] = get_phase_ratio_with_uncertainty(phase_frac_of_bases[i, :],
@@ -271,8 +276,8 @@ function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::Abstrac
                                         opt_stn::OptimizationSettings, scaled::Bool=false)
 
     ind = get_activation_indicies(length(CPs))
-    act_uncer = sqrt.(uncertainty(CPs, x, y, opt_stn, scaled)[ind])
-    log_act = log.([CP.act for CP in CPs])
+    act_uncer = sqrt.(uncertainty(CPs, x, y, opt_stn, scaled)[ind]) # FIXME: Uncertainty can have negative value if optimization fails
+    log_act = log.([CP.act for CP in CPs])                          #        Should probably flag it right after optimization
     act = exp.(log_act .± act_uncer)
 
     for i in eachindex(CPs)
