@@ -17,7 +17,7 @@ function renormalize!(y::AbstractMatrix)
     y
 end
 
-get_entropy(p::Real) = p == 0 ? 0 : - p * log(p)
+get_entropy(p::Real) = p <= 0 ? zero(p) : - p * log(p)
 get_entropy(P::AbstractArray) = sum(get_entropy.(P))
 get_entropy(P::AbstractMatrix) = reduce(vcat, sum(get_entropy.(P), dims=2))
 
