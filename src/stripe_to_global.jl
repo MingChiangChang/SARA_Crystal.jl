@@ -276,9 +276,17 @@ function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::Abstrac
                                         opt_stn::OptimizationSettings, scaled::Bool=false)
 
     ind = get_activation_indicies(length(CPs))
-    act_uncer = sqrt.(uncertainty(CPs, x, y, opt_stn, scaled)[ind]) # FIXME: Uncertainty can have negative value if optimization fails
-    log_act = log.([CP.act for CP in CPs])                          #        Should probably flag it right after optimization
-    act = exp.(log_act .± act_uncer)
+    act_var = uncertainty(CPs, x, y, opt_stn, scaled)[ind] # FIXME: Uncertainty can have negative value if optimization fails
+
+    act = Vector{Measurement}(undef, length(ind))
+    for i in eachindex(act_var)
+        if act_var[i] > 0.
+            log_act = log(CPs[i].act)
+            act[i] = exp(log_act ± sqrt(act_var[i]))
+        else
+            act[i] = CPs[i].act ± CPs[i].act
+        end
+    end
 
     for i in eachindex(CPs)
         fraction[CPs[i].id+1] += act[i] / CPs[i].norm_constant
