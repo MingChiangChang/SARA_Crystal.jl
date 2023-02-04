@@ -5,7 +5,7 @@ using CrystalShift: FixedPseudoVoigt, OptimizationSettings
 using CrystalTree: TreeSearchSettings
 
 using SARA_Crystal: get_unnormalized_phase_fractions, phase_to_global, TemperatureProfile, get_relevant_T
-using SARA_Crystal: entropy_to_global, STGSettings
+using SARA_Crystal: entropy_to_global, STGSettings, get_temperature_profile_CHESS_Spring_2023
 using CovarianceFunctions
 
 
@@ -33,6 +33,7 @@ cs = Vector{CrystalPhase}(undef, size(s))
 cs = @. CrystalPhase(String(s), (0.1, ), (FixedPseudoVoigt(0.4), ))
 # cs = cs[[1, 5, 10, 11, 12]]
 tp = TemperatureProfile()
+tp = get_temperature_profile_CHESS_Spring_2023()
 # @time t = get_phase_fractions(q, data, cs;
 #                         rank = 4,
 #                         length_scale=8.,
@@ -52,7 +53,7 @@ nout = 32 # we can still change this after the creation of the data
 # T_proportions = (.75, .99) # as a proportion of T_max, what data to convert to gradients
 constant_offset_bool = true
 constant_offset = Val(constant_offset_bool)
-T_offset = [200, 10] # number of degrees from T_max we are generating data for
+T_offset = [600, 10] # number of degrees from T_max we are generating data for
 relevant_T = get_relevant_T(constant_offset, T_offset..., nout)
 x = collect(-1.15:.01:.85)
 rank = 4
