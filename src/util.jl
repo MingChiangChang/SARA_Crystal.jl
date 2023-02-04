@@ -23,6 +23,28 @@ get_entropy(P::AbstractMatrix) = reduce(vcat, sum(get_entropy.(P), dims=2))
 
 
 ####### Helper functions
+const STD_THRESHOLD = .03
+const TOP_PROB_THRESHOLD = .1
+const top_five_diff_thershold = .05
+function reject_probs(sorted_probs::AbstractVector)
+    # check probabilties for reject conditions
+    if std(sorted_probs) < STD_THRESHOLD
+        println("Rejected")
+        println("Reason: Standard deviation of the top 5 node is not high enough")
+        return true
+    elseif sorted_probs[1] < TOP_PROB_THRESHOLD
+        println("Rejected")
+        println("Reason: Top probability not high enough")
+        return true
+    elseif (sorted_probs[1]-sorted_probs[5]) < TOP_FIVE_DIFF_THRESHOLD
+        println("Rejected")
+        println("Reason: Top five node difference is not big enough")
+        return true
+    end
+    return false
+end
+
+
 const DEFAULT_RES_THRESH = 1.
 function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
                     std_noise::Real=0.05,
@@ -142,16 +164,23 @@ end
 
 function expected_entropy(Ws::AbstractMatrix, Hs::AbstractMatrix, amorphous_frac::AbstractVector, nodes::AbstractMatrix, probability::AbstractMatrix, num_phase::Integer)
 
+    node_ind = Int64[]
+    for i in axes(nodes, 1)
+        if isassigned(nodes, i, 1)
+            push!(node_ind, i)
+        end
+    end
+
     arr = reduce(vcat, [repeat([i], 3) for i in 1:5])
-    all_perm = collect(multiset_permutations(arr, 3))
+    all_perm = collect(multiset_permutations(arr, length(node_ind)))
 
     overall_prob = similar(all_perm, Float64)
-    node_combinations = Array{Node, 2}(undef, (length(all_perm), 3))
+    node_combinations = Array{Node, 2}(undef, (length(all_perm), length(node_ind)))
     entropy = zeros(Float64, size(Hs, 2))
 
     for i in eachindex(all_perm)
-        overall_prob[i] = prod(getindex.((probability,), collect(1:3), all_perm[i]))
-        node_combinations[i, :] = getindex.((nodes,), collect(1:3), all_perm[i])
+        overall_prob[i] = prod(getindex.((probability,), node_ind, all_perm[i]))
+        node_combinations[i, :] = getindex.((nodes,), node_ind, all_perm[i])
     end
     overall_prob ./= sum(overall_prob)
     # display(overall_prob)

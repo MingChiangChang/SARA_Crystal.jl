@@ -216,7 +216,7 @@ end
 
 
 # Simple version, not doing refinement
-function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings)
+function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings) # Add background as input
     pr = ts_stn.opt_stn.priors
     W, H, _ = xray(Array(transpose(Y)), stg_stn.nmf_rank)
     best_result_nodes = Vector{Node}(undef, stg_stn.nmf_rank-1)
@@ -225,6 +225,7 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
     probability_for_entropy_calculation = zeros(Float64, (stg_stn.nmf_rank-1, 5))
 
     amorphous_idx, amorphous = classify_amorphous(W, H)
+    # amorphous -= background
     Ws = @view W[: ,filter(!=(amorphous_idx), 1:size(W, 2))]
     Hs = @view H[filter(!=(amorphous_idx), 1:size(H, 1)), :]
 
@@ -238,20 +239,43 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
         if !is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.) # temperal; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(Ws[:, i], x, stg_stn.background_length)
+            # amorphous_bg = b - background
 
             amorphous_scale = scaling_fit(amorphous, b, [1.0])
             amorphous_frac[i] = amorphous_scale[1]
 
+            # plt = plot(x, Ws[:,i]/maximum(Ws[:,i]))
             Ws[:, i] -= b
             y = Ws[:,i] / maximum(Ws[:, i])
+            # plot!(x, Ws[:,i]/maximum(Ws[:,i]), title="$(i)")
 
             # Tree search
             lt = Lazytree(cs, x, 5) # 5 is just random number that is not used
             result = search!(lt, x, y, ts_stn)
             results = reduce(vcat, result)
-            probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ)
+            probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
+            # Take top-x probabilities and do a thresholding
             best_result_node = results[argmax(probs)]
+            # plot!(x, evaluate!(zero(x), best_result_node.phase_model, x ))
+            # display(plt)
+            prob_permute = sortperm(probs, rev=true)
+            best_result_nodes_ = results[prob_permute[1:5]]
+            best_probs_ = probs[prob_permute[1:5]]
+            for i in 1:5
+                println("###")
+                println("Top $(i) node, Probability: $(best_probs_[i])")
+                println(best_result_nodes_[i].phase_model)
+            end
+            println("###")
+
+            top_prob = sort(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]
+
+            if reject_probs(top_prob)
+                println(top_prob)
+                println("rejected")
+                continue
+            end
 
             nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]]
             probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]
@@ -262,7 +286,7 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
                                                                         x, y, ts_stn.opt_stn)
         else
             # Count as amorphous
-            fractions[1:end] += Hs[i,:]
+            fractions[1:end, end] += Hs[i,:]
         end
     end
 
@@ -276,7 +300,7 @@ function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::Abstrac
                                         opt_stn::OptimizationSettings, scaled::Bool=false)
 
     ind = get_activation_indicies(length(CPs))
-    act_var = uncertainty(CPs, x, y, opt_stn, scaled)[ind] # FIXME: Uncertainty can have negative value if optimization fails
+    act_var = uncertainty(CPs, x, y, opt_stn, scaled)[ind]
 
     act = Vector{Measurement}(undef, length(ind))
     for i in eachindex(act_var)

@@ -234,8 +234,9 @@ end
 
 ### 2023
 function get_temperature_profile_CHESS_Spring_2023(dT::Real = 20, dx::Real = 10/1000)
-    pfit = [0.00903015256, -0.000174216105, 0.0742548071, -0.555849208, 3.5668932]
-    pfit = [-0.06688143,   0.22353149,  -0.0556677,   0.20606041,   2.43702215]
+    # pfit = [0.00903015256, -0.000174216105, 0.0742548071, -0.555849208, 3.5668932]
+    # pfit = [-0.06688143,   0.22353149,  -0.0556677,   0.20606041,   2.43702215]
+    pfit = [-0.05415743,  0.19816566, -0.09018768,  0.28602151,  2.41121985]
     left_width_fit  = [ 7.93197988e+02,  2.34346130e+01, -4.29544003e+01,  4.68763599e+01,
                         9.64778097e-01, -4.95937074e+00, -1.68873411e+00, -9.11029166e-05]
     right_width_fit = [ 4.39339896e+02, -4.51657906e+01, -9.35886967e+00, -3.51825565e+00,
@@ -292,4 +293,28 @@ function chess23_width_of_right_lorentzian(width_fit)
     function (log_velo, power)
         base + a*log_velo + b*power + c*log_velo^2 + d*power^2 + e*log_velo*power
     end
+end
+
+
+#### Helper
+function get_relevant_T(T_max::Real, log10_τ::Real, constant::Val{true},
+        c_low::Real, c_high::Real, n::Int,)
+    collect(range(T_max - c_low, T_max - c_high, length = n))
+end
+
+# relevant temperatures with proportional offset from T_max
+function get_relevant_T(T_max::Real, log10_τ::Real, constant::Val{false},
+    p_min::Real, p_max::Real, n::Int)
+    collect(T_max * range(p_min, p_max, length = n))
+end
+
+# lazifies evaluation on T_max and log10_τ
+function get_relevant_T(constant::Union{Val{true}, Val{false}}, c_min::Real, c_max::Real, n::Int)
+    get_T(T_max::Real, log10_τ::Real) = get_relevant_T(T_max, log10_τ, constant, c_min, c_max, n)
+end
+
+# makes constant offset the default
+function get_relevant_T(c_min::Real, c_max::Real, n::Int)
+    constant = Val(true)
+    get_T(T_max::Real, log10_τ::Real) = get_relevant_T(T_max, log10_τ, constant, c_min, c_max, n)
 end

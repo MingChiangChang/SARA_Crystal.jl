@@ -14,8 +14,9 @@ q_path = path * "TaSnO_q.npy"
 data_path = path * "TaSnO_data.npy"
 stick_path = path * "TaSnO_sticks.csv"
 
-q = npzread(q_path)[336,100:800]
-data = npzread(data_path)[336,:,100:800]
+ind = 336
+q = npzread(q_path)[ind,100:800]
+data = npzread(data_path)[ind,:,100:800]
 
 f = open(stick_path, "r")
 if Sys.iswindows()
@@ -59,9 +60,9 @@ h_threshold = .1
 frac_threshold = .1
 condition = (1300, 3)
 
-opt_stn = OptimizationSettings{Float64}(0.1, [1., .5, .5], [0.05, 10., 1.], 128, true, LM, "LS", Simple)
+opt_stn = OptimizationSettings{Float64}(0.1, [1., .1, .2], [0.05, 1., .5], 128, true, LM, "LS", EM, 5)
 stg_stn = STGSettings(rank, h_threshold, frac_threshold, 8., kernel, 0.05, tp, condition, Val(false))
-ts_stn = TreeSearchSettings{Float64}(2, 3, opt_stn)
+ts_stn = TreeSearchSettings{Float64}(2, 3, 2.5, opt_stn)
 # @time t = phase_to_global(x, q, data, cs;
 #                         rank =4,
 #                         length_scale=8.,
