@@ -245,7 +245,7 @@ function get_temperature_profile_CHESS_Spring_2023(dT::Real = 20, dx::Real = 10/
     inv_T_power = chess23_inverse_temp_surface(pfit)
     left_width_func_pixel = chess23_width_of_left_lorentzian(left_width_fit)
     right_width_func_pixel = chess23_width_of_right_lorentzian(right_width_fit)
-    μm_per_pixel = 1.04 # FIXME: measure the pixel size
+    μm_per_pixel = 1.08 # FIXME: measure the pixel size
     function width_μm(T_max::Real, log10_τ::Real)
         # convert log10_τ -> velocity
         τ = 10^log10_τ
