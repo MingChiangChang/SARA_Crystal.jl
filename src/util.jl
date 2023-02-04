@@ -25,7 +25,7 @@ get_entropy(P::AbstractMatrix) = reduce(vcat, sum(get_entropy.(P), dims=2))
 ####### Helper functions
 const STD_THRESHOLD = .03
 const TOP_PROB_THRESHOLD = .1
-const top_five_diff_thershold = .05
+const TOP_FIVE_DIFF_THRESHOLD = .05
 function reject_probs(sorted_probs::AbstractVector)
     # check probabilties for reject conditions
     if std(sorted_probs) < STD_THRESHOLD
@@ -162,7 +162,12 @@ function get_phase_model_with_phase_names(phase_names::AbstractSet,
     PhaseModel(phases[l], wildcard, background)
 end
 
-function expected_entropy(Ws::AbstractMatrix, Hs::AbstractMatrix, amorphous_frac::AbstractVector, nodes::AbstractMatrix, probability::AbstractMatrix, num_phase::Integer)
+function get_expected_entropy(Ws::AbstractMatrix,
+                              Hs::AbstractMatrix,
+                              amorphous_frac::AbstractVector,
+                              nodes::AbstractMatrix,
+                              probability::AbstractMatrix,
+                              num_phase::Integer)
 
     node_ind = Int64[]
     for i in axes(nodes, 1)
@@ -191,6 +196,47 @@ function expected_entropy(Ws::AbstractMatrix, Hs::AbstractMatrix, amorphous_frac
     end
 
     entropy
+end
+
+
+function get_expected_fraction(Ws::AbstractMatrix,
+                        Hs::AbstractMatrix,
+                        amorphous_frac::AbstractVector,
+                        nodes::AbstractMatrix,
+                        probability::AbstractMatrix,
+                        num_phase::Integer)
+
+    node_ind = Int64[]
+    for i in axes(nodes, 1)
+        if isassigned(nodes, i, 1)
+            push!(node_ind, i)
+        end
+    end
+
+    arr = reduce(vcat, [repeat([i], 3) for i in 1:5])
+    all_perm = collect(multiset_permutations(arr, length(node_ind)))
+
+    overall_prob = similar(all_perm, Float64)
+    node_combinations = Array{Node, 2}(undef, (length(all_perm), length(node_ind)))
+    fractions = zeros(Float64, (size(Hs, 2), num_phase))
+
+    for i in eachindex(all_perm)
+        overall_prob[i] = prod(getindex.((probability,), node_ind, all_perm[i]))
+        node_combinations[i, :] = getindex.((nodes,), node_ind, all_perm[i])
+    end
+
+    overall_prob ./= sum(overall_prob)
+    # display(overall_prob)
+    normalization = [maximum(Ws[:, i]) for i in axes(Ws, 2)]
+    for i in axes(Hs, 2)
+        fractions[i, :] = sum(overall_prob .* combine_activations_to_fraction(normalization,
+                                                                        Hs[:, i],
+                                                                        amorphous_frac[i],
+                                                                        node_combinations,
+                                                                        num_phase), dims=1)
+    end
+
+    fractions
 end
 
 """ Calculate the combined phase fraction at each location for each combination"""
