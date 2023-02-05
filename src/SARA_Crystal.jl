@@ -21,6 +21,13 @@ using Plots
 
 using Base.Threads
 
+
+const STD_THRESHOLD = .03
+const TOP_PROB_THRESHOLD = .1
+const TOP_FIVE_DIFF_THRESHOLD = .05
+const DEFAULT_TOP_NODE_COUNT = 5
+const DEFAULT_RES_THRESH = 1.
+
 include("util.jl")
 include("nmf.jl")
 include("temperature_profile.jl")
