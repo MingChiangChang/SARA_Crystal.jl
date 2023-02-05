@@ -313,10 +313,11 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
             # Take top-x probabilities and do a thresholding
             best_result_node = results[argmax(probs)]
-            # plot!(x, evaluate!(zero(x), best_result_node.phase_model, x ))
-            # display(plt)
+
             prob_permute = sortperm(probs, rev=true)
             best_result_nodes_ = results[prob_permute[1:5]]
+            # plot!(x, evaluate!(zero(x), best_result_nodes_[2].phase_model, x ), title= "$(std(y.-evaluate!(zero(x), best_result_node.phase_model, x )))")
+            # display(plt)
             best_probs_ = probs[prob_permute[1:5]]
             for i in 1:5
                 println("###")

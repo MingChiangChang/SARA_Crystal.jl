@@ -235,7 +235,6 @@ function get_node_conbination_and_prob(nodes::AbstractMatrix,
                                       top_node_count::Int=DEFAULT_TOP_NODE_COUNT)
 
     arr = reduce(vcat, [repeat([i], length(node_ind)) for i in 1:top_node_count])
-    println(arr)
     all_perm = collect(multiset_permutations(arr, length(node_ind)))
 
     overall_prob = similar(all_perm, Float64)
