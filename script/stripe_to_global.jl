@@ -6,7 +6,10 @@ using CrystalTree: TreeSearchSettings
 
 using SARA_Crystal: get_unnormalized_phase_fractions, phase_to_global, TemperatureProfile, get_relevant_T
 using SARA_Crystal: entropy_to_global, STGSettings, get_temperature_profile_CHESS_Spring_2023
+using SARA_Crystal: expected_fraction_to_global
 using CovarianceFunctions
+
+using Plots
 
 
 path = "/Users/ming/Desktop/Code/XRD_paper/data/"
@@ -14,9 +17,13 @@ q_path = path * "TaSnO_q.npy"
 data_path = path * "TaSnO_data.npy"
 stick_path = path * "TaSnO_sticks.csv"
 
-ind = 336
+# for ind in 76:76
+ind = 336 #13
 q = npzread(q_path)[ind,100:800]
 data = npzread(data_path)[ind,:,100:800]
+plt = heatmap(data, title="$(ind)")
+display(plt)
+# end
 
 f = open(stick_path, "r")
 if Sys.iswindows()
@@ -53,7 +60,7 @@ nout = 32 # we can still change this after the creation of the data
 # T_proportions = (.75, .99) # as a proportion of T_max, what data to convert to gradients
 constant_offset_bool = true
 constant_offset = Val(constant_offset_bool)
-T_offset = [600, 10] # number of degrees from T_max we are generating data for
+T_offset = [500, 10] # number of degrees from T_max we are generating data for
 relevant_T = get_relevant_T(constant_offset, T_offset..., nout)
 x = collect(-1.15:.01:.85)
 rank = 4
@@ -78,5 +85,11 @@ ts_stn = TreeSearchSettings{Float64}(2, 3, 2.5, opt_stn)
 #                         frac_threshold=0.1,
 #                         σ=0.05, kernel=kernel,
 #                         P=tp, condition=(1300, 3), relevant_T=relevant_T)
-@time condition, entropy, uncertainty, phase_activation, phase_activation_uncer, phase_fraction =
-       entropy_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
+# @time condition, entropy, uncertainty, phase_activation, phase_activation_uncer, phase_fraction =
+#         entropy_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
+# plt = plot(entropy, ribbon=sqrt.(uncertainty), title="$(ind)", ylim=(2, 2.7))
+# display(plt)
+# println("")
+# end
+@time condition, expected_fraction, expected_fraction_uncertainty, phase_fraction =
+            expected_fraction_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
