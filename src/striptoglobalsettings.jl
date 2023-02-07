@@ -7,8 +7,8 @@ struct StripeToGlobalSettings
     σ::Real
     TP
     condition::NTuple
-    input_noise::Union{Val{true}, Val{false}}
     check_amorphous::Bool
+    input_noise::Union{Val{true}, Val{false}}
 end
 
 const STGSettings = StripeToGlobalSettings
