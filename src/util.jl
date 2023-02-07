@@ -219,6 +219,56 @@ function get_expected_fraction(Ws::AbstractMatrix,
     fractions
 end
 
+function get_expected_fraction_and_l2(Ws::AbstractMatrix,
+                                        Hs::AbstractMatrix,
+                                        amorphous_frac::AbstractVector,
+                                        nodes::AbstractMatrix,
+                                        q::AbstractVector,
+                                        probability::AbstractMatrix,
+                                        num_phase::Integer,
+                                        top_node_count::Int=DEFAULT_TOP_NODE_COUNT)
+
+    node_ind = get_assigned_indices(nodes)
+
+    fractions = zeros(Float64, (size(Hs, 2), num_phase+1))
+    fractions = zeros(Float64, (size(Hs, 2)))
+
+    if isempty(node_ind)
+        fractions[:,end] .= 1.0
+    else
+        node_combinations, overall_prob = get_node_conbination_and_prob(nodes,
+                                                            node_ind,
+                                                            probability,
+                                                            top_node_count)
+        normalization = [maximum(Ws[:, i]) for i in axes(Ws, 2)]
+
+        for i in axes(Hs, 2)
+            fractions[i, :] = sum(overall_prob .* combine_activations_to_fraction(normalization,
+                                                                    Hs[:, i],
+                                                                    amorphous_frac[i],
+                                                                    node_combinations,
+                                                                    num_phase), dims=1)
+            l2[i, :] = sum(overall_prob .* residual(q, node_combinations))
+        end
+    end
+
+    fractions
+end
+
+# Sum l2 residual for different NMF basis
+# Maybe should do reoptimization
+function residual(q::AbstractVector, Ws, Hs, node_combinations::AbstractVector)
+    res = zeros(size(node_combinations, 1))
+
+    for i in eachindex(res)
+        for j in axes(Hs, 1)
+            res[i] += Hs[j, i] * sum(abs2, Ws[:, i] - evaluate!(zero(q), node_combinations[i], q))
+        end
+    end
+
+    res
+end
+
 function get_assigned_indices(node_matrix::AbstractMatrix)
     node_ind = Int64[]
     for i in axes(node_matrix, 1)

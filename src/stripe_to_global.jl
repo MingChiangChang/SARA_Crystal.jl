@@ -292,7 +292,8 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
 
     # TODO: Real background estimation to separate amorphous from MCBL results
     for i in axes(Ws, 2)
-        if !is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.) # temperal; Should use root node for amorphous determination
+        if !(stg_stn.check_amorphous && is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.))
+            # temperaly using background; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(Ws[:, i], x, stg_stn.background_length)
             # amorphous_bg = b - background
@@ -316,7 +317,7 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
 
             prob_permute = sortperm(probs, rev=true)
             best_result_nodes_ = results[prob_permute[1:5]]
-            # plot!(x, evaluate!(zero(x), best_result_nodes_[2].phase_model, x ), title= "$(std(y.-evaluate!(zero(x), best_result_node.phase_model, x )))")
+            # plot!(x, evaluate!(zero(x), best_result_nodes_[1].phase_model, x ), title= "$(std(y.-evaluate!(zero(x), best_result_node.phase_model, x )))")
             # display(plt)
             best_probs_ = probs[prob_permute[1:5]]
             for i in 1:5
