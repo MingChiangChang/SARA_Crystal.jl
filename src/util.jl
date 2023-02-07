@@ -49,6 +49,9 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
                     std_θ::AbstractVector=[0.05, 0.5, 0.2],
                     maxiter::Int=512,
                     threshold::Real = DEFAULT_RES_THRESH)
+    println("#######")
+    println("Doing Amorphous Check!!!")
+    println("#######")
     normalized_y =  y./maximum(y)
     bg = BackgroundModel(x, EQ(), l, p)
     amorphous = PhaseModel(nothing, nothing, bg)
