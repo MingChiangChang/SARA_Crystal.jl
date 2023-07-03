@@ -292,7 +292,7 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
 
     # TODO: Real background estimation to separate amorphous from MCBL results
     for i in axes(Ws, 2)
-        if !(stg_stn.check_amorphous && !is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.))
+        if !(stg_stn.check_amorphous && is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.))
             # temperaly using background; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(Ws[:, i], x, stg_stn.background_length)
