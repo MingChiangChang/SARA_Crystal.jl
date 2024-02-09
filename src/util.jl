@@ -52,17 +52,26 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     println("#######")
     println("Doing Amorphous Check!!!")
     println("#######")
-    normalized_y =  y./maximum(y)
-    bg = BackgroundModel(x, EQ(), l, p)
-    amorphous = PhaseModel(nothing, nothing, bg)
-    result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-                       maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
+    k = kurtosis(y)
+    if k < 0.
+       println("Is armorphous with kurtosis $(k)")
+       return true
+    else
+       println("Is Not amorphous with kurtosis $(k)")
+       return false
+    end
+    # normalized_y =  y./maximum(y)
+    # bg = BackgroundModel(x, EQ(), l, p)
+    # amorphous = PhaseModel(nothing, nothing, bg)
+    # result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
+    #                    maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
     # println(norm(normalized_y - evaluate!(zero(x), result, x)))
+    # println(threshold)
     # plt = plot(x, normalized_y)
     # plot!(x, evaluate!(zero(x), result, x))
     # display(plt)
-    # IDEA: can do peak detection of background subtracted pattern instead of l2 norm
-    return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
+    # # IDEA: can do peak detection of background subtracted pattern instead of l2 norm
+    # return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
 end
 
 function scaling_fit(base_pattern::AbstractVector,
@@ -106,11 +115,13 @@ end
 
 function collect_phase_contribution!(fractions, W, H, result_nodes, phase_fraction_of_bases, h_thresh, frac_thresh)
     W_max = [maximum(W[:, i]) for i in axes(W, 2)]
+
     for colindex in axes(H, 2)
         for i in axes(phase_fraction_of_bases, 1)
             if isassigned(result_nodes, i) && H[i, colindex] > h_thresh
                 fraction_value = getproperty.(phase_fraction_of_bases[i,:], :val)
                 fraction_value ./= maximum(fraction_value)
+
                 for phase_idx in eachindex(fraction_value)
                     if fraction_value[phase_idx] >= frac_thresh # Threshold can be 0
                         fractions[colindex, phase_idx] +=  W_max[i] * H[i, colindex] * phase_fraction_of_bases[i, phase_idx]
@@ -129,6 +140,16 @@ function normalize_with_amorphous!(fractions)
             row[1:end-1] ./= sum(row[1:end-1]) / (1-row[end])
         else
             row[end] = 1.
+        end
+    end
+    fractions
+end
+
+
+function normalize_wo_amorphous!(fractions)
+    for row in eachrow(fractions)
+        if sum(row[1:end-1]) > 0.
+            row[1:end-1] ./= sum(row[1:end-1])
         end
     end
     fractions
