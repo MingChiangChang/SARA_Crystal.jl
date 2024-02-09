@@ -44,6 +44,7 @@ end
 
 
 function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
+                    amorphous::AbstractVector,
                     std_noise::Real=0.05,
                     mean_θ::AbstractVector=[1., 1., 1.],
                     std_θ::AbstractVector=[0.05, 0.5, 0.2],
@@ -53,11 +54,18 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     println("Doing Amorphous Check!!!")
     println("#######")
     k = kurtosis(y./maximum(y))
-    if k < 0.
+    println("correlation: $(cor(y, amorphous))")
+
+    # if cor(k, amorphous) > 0.9
+    #     println("Highly correlated to as deposited with PCC=$(cor(k, amorphous))")
+    #     println("Assumed to be amorphous")
+    #     return true
+    if k < 1.
        println("Is armorphous with kurtosis $(k)")
        return true
     else
        println("May not be amorphous with kurtosis $(k)")
+       println("Perform smooth fitting")
        # return false
        normalized_y =  y./maximum(y)
        bg = BackgroundModel(x, EQ(), l, p)
@@ -211,7 +219,7 @@ function get_expected_entropy(Ws::AbstractMatrix,
     entropy
 end
 
-function get_expected_fraction(Ws::AbstractMatrix,
+function get_expected_fraction(cs::AbstractVector, Ws::AbstractMatrix,
                         Hs::AbstractMatrix,
                         amorphous_frac::AbstractVector,
                         nodes::AbstractMatrix,
@@ -221,7 +229,7 @@ function get_expected_fraction(Ws::AbstractMatrix,
 
     node_ind = get_assigned_indices(nodes)
 
-    fractions = zeros(Float64, (size(Hs, 2), num_phase+1))
+    fractions = zeros(Float64, (size(Hs, 2), length(cs)+1))
     if isempty(node_ind)
         fractions[:,end] .= 1.0
     else
@@ -232,7 +240,7 @@ function get_expected_fraction(Ws::AbstractMatrix,
         normalization = [maximum(Ws[:, i]) for i in axes(Ws, 2)]
 
         for i in axes(Hs, 2)
-            fractions[i, :] = sum(overall_prob .* combine_activations_to_fraction(normalization,
+            fractions[i, :] = sum(overall_prob .* combine_activations_to_fraction(cs, normalization,
                                                                             Hs[:, i],
                                                                             amorphous_frac[i],
                                                                             node_combinations,
@@ -324,15 +332,16 @@ function get_node_conbination_and_prob(nodes::AbstractMatrix,
 end
 
 """ Calculate the combined phase fraction at each location for each combination"""
-function combine_activations_to_fraction(normalization::AbstractVector, H::AbstractVector, amorphous_frac::Real,
+function combine_activations_to_fraction(cs::AbstractVector, normalization::AbstractVector, H::AbstractVector, amorphous_frac::Real,
                                          node_combinations::AbstractMatrix, num_phase::Integer)
 
     phase_fraction = zeros(size(node_combinations, 1), num_phase+1)
+    id_table = [c.id for c in cs]
 
     for combination_idx in axes(phase_fraction, 1)
         for i in eachindex(node_combinations[combination_idx, :])
             for CP in node_combinations[combination_idx, i].phase_model.CPs
-                phase_fraction[combination_idx, CP.id+1] += normalization[i] * H[i] * CP.act / CP.norm_constant
+                phase_fraction[combination_idx, findall(x->x==CP.id, id_table)[1]] += normalization[i] * H[i] * CP.act / CP.norm_constant
             end
         end
     end

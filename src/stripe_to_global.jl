@@ -270,7 +270,7 @@ function expected_fraction_to_global(x::AbstractVector, q::AbstractVector, Y::Ab
                                                 relevant_T)
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
     println("Get expected_fraction")
-    expected_fracs = get_expected_fraction(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
+    expected_fracs = get_expected_fraction(cs,Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
     println("Normalize with amorphous")
     phase_fraction = normalize_with_amorphous!(expected_fracs)
     return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction, nodes_for_entropy_calculation, probability_for_entropy_calculation, Ws
@@ -299,7 +299,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
 
     # TODO: Real background estimation to separate amorphous from MCBL results
     for i in axes(Ws, 2)
-        if !(stg_stn.check_amorphous && is_amorphous(x, Ws[:, i], stg_stn.background_length, 10.))
+        if !(stg_stn.check_amorphous && is_amorphous(x, Ws[:, i], stg_stn.background_length, 10., amorphous))
             # temperaly using background; Should use root node for amorphous determination
             # Background subtraction
             b = mcbl(Ws[:, i], x, stg_stn.background_length)
@@ -358,7 +358,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
 
             top_prob = sort(probs, rev=true)[1:stg_stn.n_top_node]
 
-            if reject_probs(top_prob)
+            if i>2#reject_probs(top_prob)
                 # println(top_prob)
                 println("rejected")
                 continue
@@ -414,7 +414,7 @@ function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::Abstrac
     end
 
     for i in eachindex(CPs)
-        fraction[CPs[i].id+1] += act[i] * get_n(CPs[i].profile, width[i]) / CPs[i].norm_constant
+        fraction[i] += act[i] * get_n(CPs[i].profile, width[i]) / CPs[i].norm_constant
     end
 
     fraction
