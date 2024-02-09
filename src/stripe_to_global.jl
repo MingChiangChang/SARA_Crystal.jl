@@ -273,7 +273,7 @@ function expected_fraction_to_global(x::AbstractVector, q::AbstractVector, Y::Ab
     expected_fracs = get_expected_fraction(cs,Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
     println("Normalize with amorphous")
     phase_fraction = normalize_with_amorphous!(expected_fracs)
-    return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction, nodes_for_entropy_calculation, probability_for_entropy_calculation, Ws
+    return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction #, nodes_for_entropy_calculation, probability_for_entropy_calculation, Ws
 end
 
 
