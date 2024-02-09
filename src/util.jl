@@ -60,7 +60,7 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     #     println("Highly correlated to as deposited with PCC=$(cor(k, amorphous))")
     #     println("Assumed to be amorphous")
     #     return true
-    if k < 1.
+    if k < 3.
        println("Is armorphous with kurtosis $(k)")
        return true
     else
