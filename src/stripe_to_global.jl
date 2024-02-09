@@ -266,7 +266,7 @@ function expected_fraction_to_global(x::AbstractVector, q::AbstractVector, Y::Ab
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
     expected_fracs = get_expected_fraction(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
     phase_fraction = normalize_with_amorphous!(expected_fracs)
-    return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction
+    return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction, nodes_for_entropy_calculation
 end
 
 
@@ -330,7 +330,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
             best_result_nodes_ = results[prob_permute[1:stg_stn.n_top_node]]
 
             if !isempty(stg_stn.save_plot)
-                for node_idx in eachindex(best_result_nodes)
+                for node_idx in eachindex(best_result_nodes_)
                     plt = plot(x, y, label="XRD Pattern", xlabel="q (nm⁻¹)", ylabel="Normalized Intensity", title="basis_$(i)_top_$(node_idx) Prob $(probs[prob_permute[node_idx]])")
                     for phase_idx in eachindex(best_result_nodes_[node_idx].phase_model.CPs)
                         plot!(x, evaluate!(zero(x), best_result_nodes_[node_idx].phase_model.CPs[phase_idx], x), label=best_result_nodes_[node_idx].phase_model.CPs[phase_idx].name)
