@@ -57,10 +57,13 @@ function stripe_fraction_to_global(x::AbstractVector, y::AbstractVector{<:Abstra
     other_conditions = condition[3:end]
     G = Gaussian(k) # define prior GP
     temperature_processes = Vector{Gaussian}([G for _ in 1:length(y)])
-    for j in eachindex(y)
+
+    println("get temperature process")
+    @threads for j in eachindex(y)
         C = get_temperature_process(G, x, y[j], σ, P, T_max, log10_τ, input_noise)
         temperature_processes[j] = C
     end
+    println("temperature process done")
     # C = temperature_processes[1]
     Tout = relevant_T(T_max, log10_τ) # IDEA: could add composition as dimension
     conditions = tuple.(Tout, log10_τ, other_conditions...)
@@ -143,12 +146,14 @@ function get_phase_global_data(temperature_processes::AbstractVector{<:Gaussian}
     nout = length(outer_temperature)
     DT = zeros(nout, length(temperature_processes))
     UT = similar(DT) # uncertainty
-    for i in eachindex(temperature_processes) # for (i, G) in enumerate(temperature_processes)
+    println("Get phase global data")
+    @threads for i in eachindex(temperature_processes) # for (i, G) in enumerate(temperature_processes)
         C = input_transformation(temperature_processes[i], iut) # inverse of temperature unit-scaling
         # D = GaussianDistributions.derivative(C) # take the derivative w.r.t. T
         DT[:, i] = mean(C).(unit_outer_temperature) # record mean and var of derivative of each process
         UT[:, i] = var(C).(unit_outer_temperature)
     end
+    println("Global data done")
     return DT, UT
 end
 
@@ -264,7 +269,9 @@ function expected_fraction_to_global(x::AbstractVector, q::AbstractVector, Y::Ab
                                                 stg_stn::STGSettings,
                                                 relevant_T)
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
+    println("Get expected_fraction")
     expected_fracs = get_expected_fraction(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
+    println("Normalize with amorphous")
     phase_fraction = normalize_with_amorphous!(expected_fracs)
     return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction, nodes_for_entropy_calculation, probability_for_entropy_calculation, Ws
 end
@@ -369,7 +376,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
             fractions[1:end, end] += Hs[i,:]
         end
     end
-
+    println("Calculate unnormalized fractions")
     frac, frac_uncer = calculate_unnormalized_fractions!(fractions, Ws, Hs, phase_frac_of_bases, amorphous_frac,
                                                         best_result_nodes, stg_stn.h_threshold, stg_stn.frac_threshold)
     # return all nodes (vector of vector)

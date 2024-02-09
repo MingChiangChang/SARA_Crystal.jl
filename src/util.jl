@@ -52,26 +52,26 @@ function is_amorphous(x::AbstractVector, y::AbstractVector, l::Real, p::Real,
     println("#######")
     println("Doing Amorphous Check!!!")
     println("#######")
-    k = kurtosis(y)
+    k = kurtosis(y./maximum(y))
     if k < 0.
        println("Is armorphous with kurtosis $(k)")
        return true
     else
-       println("Is Not amorphous with kurtosis $(k)")
-       return false
+       println("May not be amorphous with kurtosis $(k)")
+       # return false
+       normalized_y =  y./maximum(y)
+       bg = BackgroundModel(x, EQ(), l, p)
+       amorphous = PhaseModel(nothing, nothing, bg)
+       result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
+                          maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
+       println(norm(normalized_y - evaluate!(zero(x), result, x)))
+       println(threshold)
+       # plt = plot(x, normalized_y)
+       # plot!(x, evaluate!(zero(x), result, x))
+       # display(plt)
+       # IDEA: can do peak detection of background subtracted pattern instead of l2 norm
+       return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
     end
-    # normalized_y =  y./maximum(y)
-    # bg = BackgroundModel(x, EQ(), l, p)
-    # amorphous = PhaseModel(nothing, nothing, bg)
-    # result = optimize!(amorphous, x, normalized_y, std_noise, mean_θ, std_θ, method=LM, objective="LS",
-    #                    maxiter=maxiter, optimize_mode=Simple, regularization=true, verbose=false)
-    # println(norm(normalized_y - evaluate!(zero(x), result, x)))
-    # println(threshold)
-    # plt = plot(x, normalized_y)
-    # plot!(x, evaluate!(zero(x), result, x))
-    # display(plt)
-    # # IDEA: can do peak detection of background subtracted pattern instead of l2 norm
-    # return norm(normalized_y - evaluate!(zero(x), result, x)) < threshold
 end
 
 function scaling_fit(base_pattern::AbstractVector,
