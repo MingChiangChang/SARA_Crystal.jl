@@ -330,7 +330,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
             best_result_nodes_ = results[prob_permute[1:stg_stn.n_top_node]]
 
             if !isempty(stg_stn.save_plot)
-                for node_idx in eachindex(best_result_nodes)
+                for node_idx in eachindex(best_result_nodes_)
                     plt = plot(x, y, label="XRD Pattern", xlabel="q (nm⁻¹)", ylabel="Normalized Intensity", title="basis_$(i)_top_$(node_idx) Prob $(probs[prob_permute[node_idx]])")
                     for phase_idx in eachindex(best_result_nodes_[node_idx].phase_model.CPs)
                         plot!(x, evaluate!(zero(x), best_result_nodes_[node_idx].phase_model.CPs[phase_idx], x), label=best_result_nodes_[node_idx].phase_model.CPs[phase_idx].name)
