@@ -1,7 +1,7 @@
 const DEFAULT_H_THRESH = 0.2
 const DEFAULT_FRAC_THRESH = 0.1
 const DEFAULT_VAR = 0.01
-const DEFAULT_TOP_NODE_COUNT = 5
+# const DEFAULT_TOP_NODE_COUNT = 5
 
 
 # Process single stripe to global infomation
@@ -199,7 +199,7 @@ end
 
 function phase_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
                          cs::AbstractVector{<:CrystalPhase},
-                         ts_stn::CrystalTree.TreeSearchSettings,
+                         ts_stn::AbstractTreeSearchSettings,
                          stg_stn::STGSettings,
                          relevant_T)
     y = get_phase_fractions(q, Y, cs, ts_stn=ts_stn, stg_stn=stg_stn)
@@ -239,7 +239,7 @@ end
 
 function entropy_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
                         cs::AbstractVector{<:CrystalPhase},
-                        ts_stn::CrystalTree.TreeSearchSettings,
+                        ts_stn::AbstractTreeSearchSettings,
                         stg_stn::STGSettings,
                         relevant_T)
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
@@ -260,30 +260,30 @@ end
 
 function expected_fraction_to_global(x::AbstractVector, q::AbstractVector, Y::AbstractMatrix,
                                                 cs::AbstractVector{<:CrystalPhase},
-                                                ts_stn::CrystalTree.TreeSearchSettings,
+                                                ts_stn::AbstractTreeSearchSettings,
                                                 stg_stn::STGSettings,
                                                 relevant_T)
     act, act_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation = get_unnormalized_phase_fractions(q, Y, cs,ts_stn=ts_stn, stg_stn=stg_stn)
     expected_fracs = get_expected_fraction(Ws, Hs, act[:,end], nodes_for_entropy_calculation, probability_for_entropy_calculation, length(cs))
     phase_fraction = normalize_with_amorphous!(expected_fracs)
-    # TODO: get smoothed fraction
     return stripe_fraction_to_global(x, [ phase_fraction[:,i] for i in axes(phase_fraction, 2)], stg_stn, relevant_T)..., phase_fraction
 end
 
 
 # Simple version, not doing refinement
-function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, stg_stn::STGSettings) # Add background as input
+function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTreeSearchSettings, stg_stn::STGSettings) # Add background as input
     pr = ts_stn.opt_stn.priors
-    W, H, _ = xray(Array(transpose(Y)), stg_stn.nmf_rank)
+    W, H, K = xray(Array(transpose(Y)), stg_stn.nmf_rank)
     best_result_nodes = Vector{Node}(undef, stg_stn.nmf_rank-1)
     best_result_node_prob = Vector{Float64}(undef, stg_stn.nmf_rank-1)
-    nodes_for_entropy_calculation = Array{Node, 2}(undef, (stg_stn.nmf_rank-1, 5))
-    probability_for_entropy_calculation = zeros(Float64, (stg_stn.nmf_rank-1, 5))
+    nodes_for_entropy_calculation = Array{Node, 2}(undef, (stg_stn.nmf_rank-1, stg_stn.n_top_node))
+    probability_for_entropy_calculation = zeros(Float64, (stg_stn.nmf_rank-1, stg_stn.n_top_node))
 
     amorphous_idx, amorphous = classify_amorphous(W, H)
     # amorphous -= background
     Ws = @view W[: ,filter(!=(amorphous_idx), 1:size(W, 2))]
     Hs = @view H[filter(!=(amorphous_idx), 1:size(H, 1)), :]
+    y_uncers = @view Y_uncer[K[filter(!=(amorphous_idx), 1:length(K))], :]
 
     phase_frac_of_bases = zeros(Measurement{Float64}, (size(Hs, 1), length(cs)))
     amorphous_frac = zeros(Float64, size(Ws, 2))
@@ -303,40 +303,62 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
 
             # plt = plot(x, Ws[:,i]/maximum(Ws[:,i]))
             Ws[:, i] -= b
+            y_uncer = y_uncers[i, :] / maximum(Ws[:, i])
             y = Ws[:,i] / maximum(Ws[:, i])
             # plot!(x, Ws[:,i]/maximum(Ws[:,i]), title="$(i)")
 
             # Tree search
-            lt = Lazytree(cs, x, 5) # 5 is just random number that is not used
-            result = search!(lt, x, y, ts_stn)
+            if ts_stn isa TreeSearchSettings
+                lt = Lazytree(cs, x) # 5 is just random number that is not used
+                result = search!(lt, x, y, y_uncer, ts_stn)
+            elseif ts_stn isa MPTreeSearchSettings
+                mpt = MPTree(cs, x, 100, 0.1)
+                result = search!(mpt, x, y, y_uncer, ts_stn)
+            else
+                error("TreeSearchSetting provided is not supported yet")
+            end
+
             results = reduce(vcat, result)
-            probs = get_probabilities(results, x, y, pr.std_noise, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
+            # probs = get_probabilities(results, x, y, y_uncer, pr.std_noise, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
+            probs = get_probabilities(results, x, y, y_uncer, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
+
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
             # Take top-x probabilities and do a thresholding
             best_result_node = results[argmax(probs)]
 
             prob_permute = sortperm(probs, rev=true)
-            best_result_nodes_ = results[prob_permute[1:5]]
-            # plot!(x, evaluate!(zero(x), best_result_nodes_[1].phase_model, x ), title= "$(std(y.-evaluate!(zero(x), best_result_node.phase_model, x )))")
+            best_result_nodes_ = results[prob_permute[1:stg_stn.n_top_node]]
+
+            if !isempty(stg_stn.save_plot)
+                for node_idx in eachindex(best_result_nodes)
+                    plt = plot(x, y, label="XRD Pattern", xlabel="q (nm⁻¹)", ylabel="Normalized Intensity", title="basis_$(i)_top_$(node_idx) Prob $(probs[prob_permute[node_idx]])")
+                    for phase_idx in eachindex(best_result_nodes_[node_idx].phase_model.CPs)
+                        plot!(x, evaluate!(zero(x), best_result_nodes_[node_idx].phase_model.CPs[phase_idx], x), label=best_result_nodes_[node_idx].phase_model.CPs[phase_idx].name)
+                    end
+                    savefig("$(stg_stn.save_plot)_basis_$(i)_top_$(node_idx)_node.png")
+                end
+            end
+
+            # plt = plot(x, evaluate!(zero(x), best_result_nodes_[1].phase_model, x ), title= "$(std(y.-evaluate!(zero(x), best_result_node.phase_model, x )))")
             # display(plt)
-            best_probs_ = probs[prob_permute[1:5]]
-            for i in 1:5
+            best_probs_ = probs[prob_permute[1:stg_stn.n_top_node]]
+            for i in 1:stg_stn.n_top_node
                 println("###")
                 println("Top $(i) node, Probability: $(best_probs_[i])")
                 println(best_result_nodes_[i].phase_model)
             end
             println("###")
 
-            top_prob = sort(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]
+            top_prob = sort(probs, rev=true)[1:stg_stn.n_top_node]
 
             if reject_probs(top_prob)
-                println(top_prob)
+                # println(top_prob)
                 println("rejected")
                 continue
             end
 
-            nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]]
-            probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:DEFAULT_TOP_NODE_COUNT]
+            nodes_for_entropy_calculation[i, :] = results[sortperm(probs, rev=true)[1:stg_stn.n_top_node]]
+            probability_for_entropy_calculation[i, :] = sort(probs, rev=true)[1:stg_stn.n_top_node]
             best_result_node_prob[i] = maximum(probs)
             best_result_nodes[i] = best_result_node
             phase_frac_of_bases[i, :] = get_phase_ratio_with_uncertainty(phase_frac_of_bases[i, :],
@@ -354,27 +376,42 @@ function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::TreeSearchSettings, 
     frac, frac_uncer, Ws, Hs, nodes_for_entropy_calculation, probability_for_entropy_calculation
 end
 
+function get_unnormalized_phase_fractions(x, Y, cs; ts_stn::AbstractTreeSearchSettings, stg_stn::STGSettings) 
+    Y_uncer = zero(Y)
+    get_unnormalized_phase_fractions(x, Y, Y_uncer, cs, ts_stn=ts_stn, stg_stn=stg_stn)
+end
+
 function get_phase_ratio_with_uncertainty(fraction::AbstractVector, CPs::AbstractVector, x::AbstractVector, y::AbstractVector,
                                         opt_stn::OptimizationSettings, scaled::Bool=false)
 
-    ind = get_activation_indicies(length(CPs))
-    act_var = uncertainty(CPs, x, y, opt_stn, scaled)[ind]
+    act_ind = get_activation_indicies(length(CPs))
+    σ_ind = get_σ_indicies(length(CPs))
+    uncer = uncertainty(CPs, x, y, opt_stn, scaled)
+    act_var = uncer[act_ind]
+    σ_var = uncer[σ_ind]
 
-    act = Vector{Measurement}(undef, length(ind))
+    act = Vector{Measurement}(undef, length(CPs))
+    width = similar(act)# Vector{Measurement}(undef, length(ind))
     for i in eachindex(act_var)
         if act_var[i] > 0.
             log_act = log(CPs[i].act)
             act[i] = exp(log_act ± sqrt(act_var[i]))
+            log_σ = log(CPs[i].σ)
+            width[i] = exp(log_σ ± sqrt(σ_var[i]))
+
         else
-            act[i] = CPs[i].act ± CPs[i].act
+            # IDEA: Should we flag this???
+            act[i] = CPs[i].act ± CPs[i].act # This means its not at an local minimum
+            width[i] = CPs[i].σ ± CPs[i].σ
         end
     end
 
     for i in eachindex(CPs)
-        fraction[CPs[i].id+1] += act[i] / CPs[i].norm_constant
+        fraction[CPs[i].id+1] += act[i] * get_n(CPs[i].profile, width[i]) / CPs[i].norm_constant
     end
 
     fraction
 end
 
 get_activation_indicies(num_phase::Integer) = [7 + 8*(i-1) for i in 1:num_phase]
+get_σ_indicies(num_phase::Integer) = [8 + 8*(i-1) for i in 1:num_phase]
