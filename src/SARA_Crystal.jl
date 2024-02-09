@@ -20,6 +20,7 @@ using Combinatorics
 using StatsBase
 
 using Plots
+# ENV["GKS_WSTYPE"] = 100
 
 using Base.Threads
 
