@@ -281,6 +281,7 @@ end
 function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTreeSearchSettings, stg_stn::STGSettings) # Add background as input
     pr = ts_stn.opt_stn.priors
     W, H, K = xray(Array(transpose(Y)), stg_stn.nmf_rank)
+
     best_result_nodes = Vector{Node}(undef, stg_stn.nmf_rank-1)
     best_result_node_prob = Vector{Float64}(undef, stg_stn.nmf_rank-1)
     nodes_for_entropy_calculation = Array{Node, 2}(undef, (stg_stn.nmf_rank-1, stg_stn.n_top_node))
@@ -358,9 +359,8 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
 
             top_prob = sort(probs, rev=true)[1:stg_stn.n_top_node]
 
-            if i>2#reject_probs(top_prob)
-                # println(top_prob)
-                println("rejected")
+            if reject_probs(top_prob)
+                println("Prediction Rejected")
                 continue
             end
 
