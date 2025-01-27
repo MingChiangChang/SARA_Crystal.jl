@@ -298,6 +298,43 @@ function get_temperature_profile_CHESS_Spring_2024(dT::Real = 20, dx::Real = 10/
     LorentzianTemperatureProfile(width_μm, dT, dx)
 end
 
+function get_temperature_profile_CHESS_Spring_2025(dT::Real = 20, dx::Real = 10/1000)
+    pfit = [-0.01824834, 0.05924233, -0.01709909, 0.01145558, 2.74505353]
+    left_width_fit =  [ 5.02794524e+02,
+                       2.27809447e+02,
+                       -1.33599129e+01,
+                       -8.12411230e+01,
+                       1.76867367e-01,
+                       -1.65872055e+00,
+                       4.51417474e+00,
+                       -5.67899883e-06]
+    right_width_fit = [ 9.00132242e+02,
+                       -1.60851951e+02,
+                       -9.78194951e+00,
+                       3.82337277e+01,
+                       -4.75956003e-02,
+                       2.49843621e+00]
+
+
+    # width_fit = left_width_fit
+    inv_T_power = chess23_inverse_temp_surface(pfit)
+    left_width_func_pixel = chess23_width_of_left_lorentzian(left_width_fit)
+    right_width_func_pixel = chess23_width_of_right_lorentzian(right_width_fit)
+    μm_per_pixel = 0.98814 # 2024 pxl size
+    function width_μm(T_max::Real, log10_τ::Real)
+        # convert log10_τ -> velocity
+        τ = 10^log10_τ
+        log10_velocity = log10(88200 / τ)
+        # get power
+        power = inv_T_power(log10_velocity, T_max)
+        # get width
+        width_pixel = left_width_func_pixel(log10_velocity, power)
+        width_μm = μm_per_pixel * width_pixel
+        return width_μm # return positive to use right width 
+    end
+    LorentzianTemperatureProfile(width_μm, dT, dx)
+end
+
 # function inverse_profile(P::LorentzianTemperatureProfile, T_max::Real, log10_τ::Real)
 #     width_μm = P.width(T_max, log10_τ)
 #     function invprof(T)
