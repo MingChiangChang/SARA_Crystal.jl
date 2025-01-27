@@ -4,6 +4,7 @@ struct StripeToGlobalSettings
     frac_threshold::Real
     n_top_node::Integer # Top node that stripe to global will consider
     background_length::Real
+    norm_constant::Real # For probabilistic esimtation
     kernel
     σ::Real
     TP
@@ -22,6 +23,7 @@ function STGSettings()
         0.1, # frac_threshold
         5,   # n_top_node
         8.,  # background_length
+        2.5, # norm_constant
         Lengthscale(MaternP(2), 0.05), # kernel
         0.05, # σ
         TemperatureProfile(), # TemperatureProfile
@@ -33,7 +35,8 @@ function STGSettings()
 end
 
 function STGSettings(nmf_rank::Integer, h_threshold::Real, frac_threshold::Real, n_top_node::Integer,
-      background_length::Real, kernel, σ::Real, TP,
+      background_length::Real, norm_constant::Real, kernel, σ::Real, TP,
       condition::NTuple, check_amorphous::Bool, save_plot::String="")
-      STGSettings(nmf_rank, h_threshold, frac_threshold, n_top_node, background_length, kernel,σ, TP,condition, check_amorphous, Val(true), save_plot)
+      STGSettings(nmf_rank, h_threshold, frac_threshold, n_top_node, background_length, norm_constant,
+                kernel,σ, TP,condition, check_amorphous, Val(true), save_plot)
 end

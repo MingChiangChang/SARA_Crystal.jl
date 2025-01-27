@@ -95,7 +95,7 @@ function scaling_fit(base_pattern::AbstractVector,
     end
 
     lm = LevenbergMarquart(t, x0, zero(new_pattern))
-    params, _ = OptimizationAlgorithms.optimize!(lm, x0, zero(new_pattern), stn, 1e-6, Val(false))
+    params = OptimizationAlgorithms.optimize!(lm, x0, zero(new_pattern), stn, 1e-6, Val(false))
     return params
 end
 

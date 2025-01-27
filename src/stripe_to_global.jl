@@ -328,7 +328,7 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
 
             results = reduce(vcat, result)
             # probs = get_probabilities(results, x, y, y_uncer, pr.std_noise, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
-            probs = get_probabilities(results, x, y, y_uncer, pr.mean_θ, pr.std_θ,normalization_constant= ts_stn.normalization_constant)
+            probs = get_probabilities(results, x, y, y_uncer, pr.mean_θ, pr.std_θ,normalization_constant= stg_stn.norm_constant)
 
             # TODO: Need to do probability check here. How do we flag potentially unidentifiable phases or amorphous
             # Take top-x probabilities and do a thresholding
@@ -373,6 +373,13 @@ function get_unnormalized_phase_fractions(x, Y, Y_uncer, cs; ts_stn::AbstractTre
                                                                         x, y, ts_stn.opt_stn)
         else
             # Count as amorphous
+            if !isempty(stg_stn.save_plot)
+                plt = plot(x, Ws[:, i], label="XRD Pattern", xlabel="q (nm⁻¹)", ylabel="Normalized Intensity", title="basis_$(i) Amorphous")
+                # for phase_idx in eachindex(best_result_nodes_[node_idx].phase_model.CPs)
+                #     plot!(x, evaluate!(zero(x), best_result_nodes_[node_idx].phase_model.CPs[phase_idx], x), label=best_result_nodes_[node_idx].phase_model.CPs[phase_idx].name)
+                # end
+                savefig("$(stg_stn.save_plot)_basis_$(i)_amorphous.png")
+            end
             fractions[1:end, end] += Hs[i,:]
         end
     end

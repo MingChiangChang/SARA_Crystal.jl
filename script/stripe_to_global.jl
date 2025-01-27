@@ -12,7 +12,7 @@ using CovarianceFunctions
 using Plots
 
 
-path = "/Users/ming/Desktop/Code/XRD_paper/data/"
+path = "/Users/ming/Desktop/Code/CrystalShift.jl/paper/data/TaSnO/"
 q_path = path * "TaSnO_q.npy"
 data_path = path * "TaSnO_data.npy"
 stick_path = path * "TaSnO_sticks.csv"
@@ -68,9 +68,10 @@ h_threshold = .1
 frac_threshold = .1
 condition = (1300, 3)
 
-opt_stn = OptimizationSettings{Float64}(0.1, [1., .1, .2], [0.05, 1., .5], 128, true, LM, "LS", EM, 5)
-stg_stn = STGSettings(rank, h_threshold, frac_threshold, 8., kernel, 0.05, tp, condition, Val(false))
-ts_stn = TreeSearchSettings{Float64}(2, 3, 2.5, opt_stn)
+opt_stn = OptimizationSettings{Float64}(0.1, [1., .1, .2], [0.05, 1., .5], 512, true, LM, "LS", EM, 5)
+stg_stn = STGSettings(rank, h_threshold, frac_threshold, 5, 8., 0.5, kernel, 0.05, tp, condition,
+false, Val(true), "")
+ts_stn = TreeSearchSettings{Float64}(3, 3, false, false, 2.5, opt_stn)
 # @time t = phase_to_global(x, q, data, cs;
 #                         rank =4,
 #                         length_scale=8.,
@@ -93,3 +94,4 @@ ts_stn = TreeSearchSettings{Float64}(2, 3, 2.5, opt_stn)
 # end
 @time condition, expected_fraction, expected_fraction_uncertainty, phase_fraction =
             expected_fraction_to_global(x, q, data, cs, ts_stn, stg_stn, relevant_T)
+println()

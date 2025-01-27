@@ -298,17 +298,17 @@ function get_temperature_profile_CHESS_Spring_2024(dT::Real = 20, dx::Real = 10/
     LorentzianTemperatureProfile(width_μm, dT, dx)
 end
 
-function inverse_profile(P::LorentzianTemperatureProfile, T_max::Real, log10_τ::Real)
-    width_μm = P.width(T_max, log10_τ)
-    function invprof(T)
-        T > 0 || throw(DomainError("T is non-positive: $T"))
-        T_max ≥ T || throw(DomainError("T exceeds T_max: T = $T > $T_max = T_max"))
-        # derivation of inverse
-        # T = T_max * inv(1 + (x_μm / width_μm)^2)
-        # inv(T / T_max) = 1 + (x_μm / width_μm)^2
-        (T ≈ T_max) ? zero(eltype(T)) : sqrt(inv(T / T_max) - 1) * width_μm * 1e-3 # = x_mm (negative position for CHESS 2022, since width is negative)
-    end
-end
+# function inverse_profile(P::LorentzianTemperatureProfile, T_max::Real, log10_τ::Real)
+#     width_μm = P.width(T_max, log10_τ)
+#     function invprof(T)
+#         T > 0 || throw(DomainError("T is non-positive: $T"))
+#         T_max ≥ T || throw(DomainError("T exceeds T_max: T = $T > $T_max = T_max"))
+#         # derivation of inverse
+#         # T = T_max * inv(1 + (x_μm / width_μm)^2)
+#         # inv(T / T_max) = 1 + (x_μm / width_μm)^2
+#         (T ≈ T_max) ? zero(eltype(T)) : sqrt(inv(T / T_max) - 1) * width_μm * 1e-3 # = x_mm (negative position for CHESS 2022, since width is negative)
+#     end
+# end
 
 # converts (log_velocity, T_max) -> power
 function chess23_inverse_temp_surface(pfit)

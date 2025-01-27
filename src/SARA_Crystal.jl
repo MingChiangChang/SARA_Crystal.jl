@@ -11,8 +11,9 @@ using CovarianceFunctions: EQ, Lengthscale, MaternP, AbstractKernel
 using BackgroundSubtraction: mcbl
 using OptimizationAlgorithms
 using OptimizationAlgorithms: LevenbergMarquart, LevenbergMarquartSettings
+using Plots
 
-using PyCall
+# using PyCal
 using ForwardDiff
 using Statistics
 using Measurements
